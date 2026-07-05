@@ -36,7 +36,7 @@ function renderPCs() {
 
       <!-- Stats (admin only) -->
       ${isAdminUser ? `
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);margin-bottom:var(--space-lg)">
+      <div class="grid grid-stats" style="margin-bottom:var(--space-lg)">
         <div class="stat-card animate-slideUp stagger-1">
           <div class="stat-card-icon green"><i data-lucide="monitor" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="pcTotal">—</div>
@@ -64,19 +64,19 @@ function renderPCs() {
       ${isAdminUser ? `
       <div class="card animate-slideUp stagger-2" style="margin-bottom:var(--space-lg)">
         <div class="card-body" style="padding:var(--space-md)">
-          <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center">
-            <div class="search-input" style="flex:1;min-width:200px">
+          <div class="grid grid-3" style="gap:var(--space-md)">
+            <div class="search-input">
               <i data-lucide="search" class="search-icon"></i>
               <input type="text" id="pcSearch" placeholder="Search by name, specs..." />
             </div>
-            <select class="form-select" id="pcConditionFilter" style="width:auto">
+            <select class="form-select" id="pcConditionFilter">
               <option value="">All Conditions</option>
               <option value="excellent">Excellent</option>
               <option value="good">Good</option>
               <option value="fair">Fair</option>
               <option value="needs_repair">Needs Repair</option>
             </select>
-            <select class="form-select" id="pcAssignFilter" style="width:auto">
+            <select class="form-select" id="pcAssignFilter">
               <option value="">All PCs</option>
               <option value="assigned">Assigned</option>
               <option value="unassigned">Unassigned</option>
@@ -88,7 +88,7 @@ function renderPCs() {
 
       <!-- PC Grid -->
       <div id="pcsContainer">
-        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-lg)">
+        <div class="grid grid-auto-fit" style="gap:var(--space-lg)">
           ${[1,2,3,4].map(() => `
             <div class="card">
               <div class="card-body">
@@ -113,7 +113,7 @@ function renderPCs() {
         </div>
         <div class="modal-body">
           <form id="pcForm">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+            <div class="grid grid-2" style="gap:var(--space-md)">
               <div class="form-group" style="grid-column:1/-1">
                 <label class="form-label">PC Name / Hostname *</label>
                 <input type="text" class="form-input" id="pcName" placeholder="e.g. VLSI-WS-01" required />
@@ -259,7 +259,7 @@ async function initPCs() {
 
     // For student view (pcs/my returns pc_assignments joined with pcs)
     container.innerHTML = `
-      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-lg)">
+      <div class="grid grid-auto-fit" style="gap:var(--space-lg)">
         ${pcs.map(pc => {
           const cond = conditionConfig[pc.condition] || conditionConfig.good;
           const assignee = pc.current_assignment;
@@ -292,8 +292,8 @@ async function initPCs() {
                 ${specsStr ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:var(--space-sm)"><i data-lucide="cpu" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>${specsStr}</div>` : ''}
 
                 ${software.length > 0 ? `
-                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:var(--space-sm)">
-                  ${software.map(s => `<span class="tag" style="font-size:0.7rem;padding:2px 7px">${s}</span>`).join('')}
+                <div class="grid" style="grid-template-columns:repeat(auto-fill, minmax(80px, 1fr)); gap:4px; margin-bottom:var(--space-sm)">
+                  ${software.map(s => `<span class="tag" style="font-size:0.7rem;padding:2px 7px;text-align:center">${s}</span>`).join('')}
                 </div>` : ''}
 
                 ${assignee ? `

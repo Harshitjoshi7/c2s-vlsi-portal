@@ -80,7 +80,7 @@ function renderAttendance() {
       </div>
 
       <!-- Views -->
-      <div class="grid" style="grid-template-columns:1fr 300px;gap:var(--space-lg)">
+      <div class="grid grid-dashboard">
         
         <!-- Attendance Table -->
         <div class="card animate-slideUp stagger-4">
@@ -88,7 +88,7 @@ function renderAttendance() {
             <div id="attendanceContainer">
               <div style="padding:var(--space-xl)">
                 ${[1,2,3,4,5].map(() => `
-                  <div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md) 0;border-bottom:1px solid var(--border-color)">
+                  <div class="grid grid-3" style="padding:var(--space-md) 0;border-bottom:1px solid var(--border-color)">
                     <div class="skeleton skeleton-text" style="width:30%;margin:0"></div>
                     <div class="skeleton skeleton-text" style="width:20%;margin:0"></div>
                     <div class="skeleton skeleton-text" style="width:15%;margin:0"></div>
@@ -140,7 +140,7 @@ function renderAttendance() {
           </button>
         </div>
         <div class="modal-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+          <div class="grid grid-2" style="gap:var(--space-md)">
             <div class="form-group">
               <label class="form-label">Start Date *</label>
               <input type="date" class="form-input" id="leaveStartDate" />

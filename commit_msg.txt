@@ -1,0 +1,6 @@
+fix: mobile grids and stat card layout
+
+- replaced hardcoded inline `grid-template-columns: repeat(4,1fr)` with responsive `.grid-stats` class in all page components
+- replaced hardcoded 2-column inline grids with `.grid-2`
+- made `.form-select` and `.search-input` 100% width on mobile screens to prevent shrinking dropdowns
+- added `overflow-wrap: break-word` to `.stat-card-label` to prevent text cutoffs on small screens

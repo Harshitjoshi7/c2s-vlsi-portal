@@ -95,7 +95,7 @@ function renderTasks() {
               <label class="form-label">Description</label>
               <textarea class="form-textarea" id="taskDesc" rows="3" placeholder="Detailed description..."></textarea>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+            <div class="grid grid-2" style="gap:var(--space-md)">
               <div class="form-group">
                 <label class="form-label">Priority</label>
                 <select class="form-select" id="taskPriority">
@@ -278,7 +278,7 @@ async function initTasks() {
     ];
 
     container.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);overflow-x:auto;min-width:800px">
+      <div class="grid grid-stats" style="overflow-x:auto;min-width:800px">
         ${columns.map(col => {
           const colTasks = tasks.filter(t => t.status === col.key);
           return `
@@ -288,7 +288,7 @@ async function initTasks() {
                 <span style="font-weight:600;font-size:0.875rem;color:var(--text-primary)">${col.label}</span>
                 <span style="margin-left:auto;background:rgba(255,255,255,0.08);color:var(--text-muted);border-radius:20px;padding:2px 8px;font-size:0.75rem;font-weight:600">${colTasks.length}</span>
               </div>
-              <div style="display:flex;flex-direction:column;gap:var(--space-sm)">
+              <div class="grid grid-2" style="gap:var(--space-md)">
                 ${colTasks.length === 0 ? `<div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:var(--space-lg) 0">No tasks</div>` : ''}
                 ${colTasks.map(task => {
                   const pri = priorityConfig[task.priority] || priorityConfig.medium;

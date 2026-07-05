@@ -23,7 +23,7 @@ function renderUsers() {
       </div>
 
       <!-- Filters & Stats -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-lg)" id="userStats">
+      <div class="grid grid-stats" style="margin-bottom:var(--space-lg)" id="userStats">
         <div class="stat-card animate-slideUp stagger-1">
           <div class="stat-card-icon blue"><i data-lucide="users" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="totalUsersCount">—</div>
@@ -67,7 +67,7 @@ function renderUsers() {
           <div id="usersTableContainer">
             <div style="padding:var(--space-xl)">
               ${[1,2,3,4,5].map(() => `
-                <div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md) 0;border-bottom:1px solid var(--border-color)">
+                <div class="d-flex align-items-center gap-md py-md border-bottom">
                   <div class="skeleton" style="width:40px;height:40px;border-radius:50%"></div>
                   <div style="flex:1">
                     <div class="skeleton skeleton-text" style="width:40%;margin-bottom:6px"></div>
@@ -92,7 +92,7 @@ function renderUsers() {
         </div>
         <div class="modal-body">
           <form id="userForm">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+            <div class="grid grid-2" style="gap:var(--space-md)">
               <div class="form-group" style="grid-column:1/-1">
                 <label class="form-label">Full Name *</label>
                 <input type="text" class="form-input" id="userName" placeholder="Full name" required />
@@ -228,7 +228,7 @@ async function initUsers() {
               return `
                 <tr>
                   <td>
-                    <div style="display:flex;align-items:center;gap:var(--space-md)">
+                    <div class="d-flex align-items-center gap-md">
                       <div class="avatar avatar-sm">${initials}</div>
                       <div>
                         <div class="cell-primary" style="cursor:pointer;color:var(--accent-primary)" onclick="viewUserProfile(${u.id})">${u.name}</div>

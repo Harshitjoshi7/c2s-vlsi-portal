@@ -87,7 +87,7 @@ function renderProjects() {
               <label class="form-label">Description</label>
               <textarea class="form-textarea" id="projDesc" rows="3" placeholder="Brief description of the project..."></textarea>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+            <div class="grid grid-2" style="gap:var(--space-md)">
               <div class="form-group">
                 <label class="form-label">Type</label>
                 <select class="form-select" id="projType">
@@ -458,7 +458,7 @@ async function initProjects() {
         </div>
       </div>
       
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-bottom:var(--space-md)">
+      <div class="grid grid-2" style="gap:var(--space-md);margin-bottom:var(--space-md)">
         ${proj.start_date ? `<div><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Start Date</div><div style="font-weight:500">${new Date(proj.start_date).toLocaleDateString()}</div></div>` : ''}
         ${proj.end_date ? `<div><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">End Date</div><div style="font-weight:500">${new Date(proj.end_date).toLocaleDateString()}</div></div>` : ''}
       </div>

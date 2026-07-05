@@ -37,7 +37,7 @@ function renderReports() {
       </div>
 
       <!-- Summary Stats -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);margin-bottom:var(--space-xl)" id="reportStats">
+      <div class="grid grid-stats" style="margin-bottom:var(--space-xl)" id="reportStats">
         <div class="stat-card animate-slideUp stagger-1">
           <div class="stat-card-icon blue"><i data-lucide="users" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="rTotalStudents">—</div>

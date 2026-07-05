@@ -52,11 +52,11 @@ function renderDailyLogs() {
       </div>
 
       <!-- Views -->
-      <div class="grid" style="grid-template-columns:1fr 300px;gap:var(--space-lg)">
+      <div class="grid grid-dashboard">
         
         <!-- Logs List -->
         <div id="logsContainer">
-          <div style="display:flex;flex-direction:column;gap:var(--space-md)">
+          <div class="grid grid-2" style="gap:var(--space-md)">
             ${[1,2,3].map(() => `
               <div class="card">
                 <div class="card-body">
@@ -95,7 +95,7 @@ function renderDailyLogs() {
               <label class="form-label">Work Description</label>
               <textarea class="form-textarea" id="logDescription" rows="4" placeholder="Describe what you worked on today..." required style="min-height:120px"></textarea>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+            <div class="grid grid-dashboard" style="gap:var(--space-lg)">
               <div class="form-group">
                 <label class="form-label">Category</label>
                 <select class="form-select" id="logCategory">

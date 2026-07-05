@@ -26,7 +26,7 @@ function renderTickets() {
       </div>
 
       <!-- Quick Stats -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);margin-bottom:var(--space-lg)">
+      <div class="grid grid-stats" style="margin-bottom:var(--space-lg)">
         <div class="stat-card animate-slideUp stagger-1">
           <div class="stat-card-icon red"><i data-lucide="alert-circle" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="ticketOpen">—</div>
@@ -111,7 +111,7 @@ function renderTickets() {
               <label class="form-label">Issue Description *</label>
               <textarea class="form-textarea" id="ticketDesc" rows="4" placeholder="Describe the issue in detail..." required style="min-height:120px"></textarea>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+            <div class="grid grid-2" style="gap:var(--space-md)">
               <div class="form-group">
                 <label class="form-label">Issue Type</label>
                 <select class="form-select" id="ticketType">

@@ -745,6 +745,12 @@
     flex-wrap: wrap;
   }
 
+  /* ── Filters & Forms ── */
+  .form-select,
+  .search-input {
+    width: 100% !important;
+  }
+
   /* ── Grids ── */
   .grid-2,
   .grid-3,

@@ -59,7 +59,7 @@ function renderProfile() {
             </div>
             <div class="card-body">
               <form id="profileInfoForm">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+                <div class="grid grid-2" style="gap:var(--space-md)">
                   <div class="form-group" style="grid-column:1/-1">
                     <label class="form-label">Full Name</label>
                     <input type="text" class="form-input" id="profileName" placeholder="Your full name" />
@@ -106,7 +106,7 @@ function renderProfile() {
                   <label class="form-label">Current Password</label>
                   <input type="password" class="form-input" id="currentPassword" placeholder="Enter current password" />
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
+                <div class="grid grid-2" style="gap:var(--space-md)">
                   <div class="form-group">
                     <label class="form-label">New Password</label>
                     <input type="password" class="form-input" id="newPassword" placeholder="New password" />
