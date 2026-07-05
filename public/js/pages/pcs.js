@@ -64,7 +64,7 @@ function renderPCs() {
       ${isAdminUser ? `
       <div class="card animate-slideUp stagger-2" style="margin-bottom:var(--space-lg)">
         <div class="card-body" style="padding:var(--space-md)">
-          <div class="grid grid-3" style="gap:var(--space-md)">
+          <div class="grid grid-4" style="gap:var(--space-md)">
             <div class="search-input">
               <i data-lucide="search" class="search-icon"></i>
               <input type="text" id="pcSearch" placeholder="Search by name, specs..." />
@@ -80,6 +80,9 @@ function renderPCs() {
               <option value="">All PCs</option>
               <option value="assigned">Assigned</option>
               <option value="unassigned">Unassigned</option>
+            </select>
+            <select class="form-select" id="pcStudentFilter">
+              <option value="">All Students</option>
             </select>
           </div>
         </div>
@@ -344,6 +347,7 @@ async function initPCs() {
     const search = document.getElementById('pcSearch')?.value.toLowerCase() || '';
     const condFilter = document.getElementById('pcConditionFilter')?.value || '';
     const assignFilter = document.getElementById('pcAssignFilter')?.value || '';
+    const studentFilter = document.getElementById('pcStudentFilter')?.value;
 
     const filtered = allPCs.filter(pc => {
       const specsStr = JSON.stringify(pc.specs || '');
@@ -351,15 +355,29 @@ async function initPCs() {
       const matchSearch = !search || (pc.pc_name||'').toLowerCase().includes(search) || specsStr.toLowerCase().includes(search) || softwareStr.toLowerCase().includes(search);
       const matchCond = !condFilter || pc.condition === condFilter;
       const matchAssign = !assignFilter || (assignFilter === 'assigned' ? !!pc.current_assignment : !pc.current_assignment);
-      return matchSearch && matchCond && matchAssign;
+      const matchStudent = !studentFilter || (pc.current_assignment && String(pc.current_assignment.user_id) === String(studentFilter));
+      
+      return matchSearch && matchCond && matchAssign && matchStudent;
     });
     renderPCGrid(filtered);
   }
 
   if (isAdminUser) {
-    ['pcSearch','pcConditionFilter','pcAssignFilter'].forEach(id => {
+    ['pcSearch','pcConditionFilter','pcAssignFilter','pcStudentFilter'].forEach(id => {
       document.getElementById(id)?.addEventListener('input', applyFilters);
+      document.getElementById(id)?.addEventListener('change', applyFilters);
     });
+    
+    // Populate student filter dropdown
+    const studentFilterEl = document.getElementById('pcStudentFilter');
+    if (studentFilterEl && allStudents) {
+      allStudents.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        studentFilterEl.appendChild(opt);
+      });
+    }
   }
 
   // ── Add/Edit PC Modal ──

@@ -60,6 +60,17 @@
   backdrop-filter: blur(8px);
 }
 
+.btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-outline:hover {
+  background: var(--bg-glass);
+  border-color: var(--text-muted);
+}
+
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.15);
