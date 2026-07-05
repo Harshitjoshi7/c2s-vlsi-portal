@@ -207,67 +207,111 @@ async function initUsers() {
       return;
     }
 
-    container.innerHTML = `
-      <div class="table-container" style="border:none">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Role</th>
-              <th>Batch</th>
-              <th>Enrollment</th>
-              <th>GitHub</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${users.map(u => {
-              const initials = u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
-              const roleColor = u.role === 'admin' ? 'var(--accent-secondary)' : 'var(--info)';
-              const roleBg = u.role === 'admin' ? 'rgba(124,92,255,0.1)' : 'rgba(64,196,255,0.1)';
-              return `
-                <tr>
-                  <td>
-                    <div class="d-flex align-items-center gap-md">
-                      <div class="avatar avatar-sm">${initials}</div>
-                      <div>
-                        <div class="cell-primary" style="cursor:pointer;color:var(--accent-primary)" onclick="viewUserProfile(${u.id})">${u.name}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted)">${u.email}</div>
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+      // ── Mobile: Card list ──
+      container.innerHTML = `
+        <div class="mobile-user-list">
+          ${users.map(u => {
+            const initials = u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+            const roleColor = u.role === 'admin' ? 'var(--accent-secondary)' : 'var(--info)';
+            const roleBg = u.role === 'admin' ? 'rgba(124,92,255,0.1)' : 'rgba(64,196,255,0.1)';
+            return `
+              <div class="mobile-user-card" onclick="viewUserProfile(${u.id})">
+                <div class="mobile-user-card-top">
+                  <div class="avatar avatar-sm">${initials}</div>
+                  <div class="mobile-user-card-info">
+                    <div class="mobile-user-card-name">${u.name}</div>
+                    <div class="mobile-user-card-email">${u.email}</div>
+                  </div>
+                  <span class="mobile-user-card-role" style="background:${roleBg};color:${roleColor}">${u.role}</span>
+                </div>
+                <div class="mobile-user-card-meta">
+                  ${u.batch ? `<span><i data-lucide="calendar" style="width:12px;height:12px"></i> ${u.batch}</span>` : ''}
+                  ${u.enrollment_id ? `<span><i data-lucide="hash" style="width:12px;height:12px"></i> ${u.enrollment_id}</span>` : ''}
+                  ${u.github_username ? `<span><i data-lucide="github" style="width:12px;height:12px"></i> ${u.github_username}</span>` : ''}
+                </div>
+                <div class="mobile-user-card-actions" onclick="event.stopPropagation()">
+                  <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id})" title="Edit">
+                    <i data-lucide="pencil" style="width:14px;height:14px"></i> Edit
+                  </button>
+                  <button class="btn btn-ghost btn-sm" onclick="resetUserPassword(${u.id},'${u.name.replace(/'/g, "\\'")}')" title="Reset Password" style="color:var(--warning)">
+                    <i data-lucide="key" style="width:14px;height:14px"></i> Reset
+                  </button>
+                  <button class="btn btn-ghost btn-sm" onclick="deactivateUser(${u.id},'${u.name.replace(/'/g, "\\'")}')" style="color:var(--error)" title="Deactivate">
+                    <i data-lucide="user-x" style="width:14px;height:14px"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      // ── Desktop: Table ──
+      container.innerHTML = `
+        <div class="table-container" style="border:none">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>Batch</th>
+                <th>Enrollment</th>
+                <th>GitHub</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map(u => {
+                const initials = u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+                const roleColor = u.role === 'admin' ? 'var(--accent-secondary)' : 'var(--info)';
+                const roleBg = u.role === 'admin' ? 'rgba(124,92,255,0.1)' : 'rgba(64,196,255,0.1)';
+                return `
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-md">
+                        <div class="avatar avatar-sm">${initials}</div>
+                        <div>
+                          <div class="cell-primary" style="cursor:pointer;color:var(--accent-primary)" onclick="viewUserProfile(${u.id})">${u.name}</div>
+                          <div style="font-size:0.75rem;color:var(--text-muted)">${u.email}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span style="padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${roleBg};color:${roleColor};text-transform:capitalize">${u.role}</span>
-                  </td>
-                  <td style="color:var(--text-secondary)">${u.batch || '—'}</td>
-                  <td style="color:var(--text-secondary)">${u.enrollment_id || '—'}</td>
-                  <td>
-                    ${u.github_username ? `
-                    <a href="https://github.com/${u.github_username}" target="_blank" style="display:flex;align-items:center;gap:4px;color:var(--accent-primary);font-size:0.85rem">
-                      <i data-lucide="github" style="width:14px;height:14px"></i>
-                      ${u.github_username}
-                    </a>` : '<span style="color:var(--text-muted)">—</span>'}
-                  </td>
-                  <td>
-                    <div style="display:flex;gap:4px">
-                      <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id})" title="Edit">
-                        <i data-lucide="pencil" style="width:14px;height:14px"></i>
-                      </button>
-                      <button class="btn btn-ghost btn-sm" onclick="resetUserPassword(${u.id},'${u.name.replace(/'/g, "\\'")}')" title="Reset Password" style="color:var(--warning)">
-                        <i data-lucide="key" style="width:14px;height:14px"></i>
-                      </button>
-                      <button class="btn btn-ghost btn-sm" onclick="deactivateUser(${u.id},'${u.name.replace(/'/g, "\\'")}')" style="color:var(--error)" title="Deactivate">
-                        <i data-lucide="user-x" style="width:14px;height:14px"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+                    </td>
+                    <td>
+                      <span style="padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${roleBg};color:${roleColor};text-transform:capitalize">${u.role}</span>
+                    </td>
+                    <td style="color:var(--text-secondary)">${u.batch || '—'}</td>
+                    <td style="color:var(--text-secondary)">${u.enrollment_id || '—'}</td>
+                    <td>
+                      ${u.github_username ? `
+                      <a href="https://github.com/${u.github_username}" target="_blank" style="display:flex;align-items:center;gap:4px;color:var(--accent-primary);font-size:0.85rem">
+                        <i data-lucide="github" style="width:14px;height:14px"></i>
+                        ${u.github_username}
+                      </a>` : '<span style="color:var(--text-muted)">—</span>'}
+                    </td>
+                    <td>
+                      <div style="display:flex;gap:4px">
+                        <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id})" title="Edit">
+                          <i data-lucide="pencil" style="width:14px;height:14px"></i>
+                        </button>
+                        <button class="btn btn-ghost btn-sm" onclick="resetUserPassword(${u.id},'${u.name.replace(/'/g, "\\'")}')" title="Reset Password" style="color:var(--warning)">
+                          <i data-lucide="key" style="width:14px;height:14px"></i>
+                        </button>
+                        <button class="btn btn-ghost btn-sm" onclick="deactivateUser(${u.id},'${u.name.replace(/'/g, "\\'")}')" style="color:var(--error)" title="Deactivate">
+                          <i data-lucide="user-x" style="width:14px;height:14px"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
     if (window.lucide) lucide.createIcons();
   }
 

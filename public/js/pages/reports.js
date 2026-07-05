@@ -14,9 +14,9 @@ function renderReports() {
           </h1>
           <p class="page-subtitle animate-slideUp stagger-1">Lab performance overview and trends</p>
         </div>
-        <div class="page-header-actions animate-slideUp stagger-2">
-          <div style="position:relative;display:inline-block;">
-            <select class="btn btn-secondary" id="exportReportType" style="padding-right:32px;appearance:none;background:var(--bg-glass);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--border-radius-sm);height:36px;cursor:pointer;font-family:inherit;font-size:0.875rem">
+        <div class="page-header-actions animate-slideUp stagger-2" style="display:flex;gap:var(--space-sm);flex-wrap:wrap;width:100%">
+          <div style="position:relative;flex:1;min-width:180px">
+            <select class="btn btn-secondary" id="exportReportType" style="width:100%;padding-right:32px;appearance:none;background:var(--bg-glass);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--border-radius-sm);height:36px;cursor:pointer;font-family:inherit;font-size:0.875rem">
               <option value="all">Export All (Excel)</option>
               <option value="students">Export Students</option>
               <option value="attendance">Export Attendance</option>
@@ -25,10 +25,10 @@ function renderReports() {
             </select>
             <i data-lucide="download" style="position:absolute;right:10px;top:10px;width:16px;height:16px;pointer-events:none;color:var(--text-muted)"></i>
           </div>
-          <button class="btn btn-primary" id="exportExcelBtn" title="Download Excel">
+          <button class="btn btn-primary" id="exportExcelBtn" title="Download Excel" style="flex:shrink:0">
             Go
           </button>
-          <select class="form-select" id="reportMonthRange" style="width:auto">
+          <select class="form-select" id="reportMonthRange" style="flex:1;min-width:140px">
             <option value="1">Last 30 days</option>
             <option value="3" selected>Last 3 months</option>
             <option value="6">Last 6 months</option>

@@ -399,6 +399,83 @@
   border-collapse: collapse;
 }
 
+/* Mobile User Cards (replaces table on small screens) */
+.mobile-user-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.mobile-user-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-user-card:active {
+  transform: scale(0.98);
+}
+
+.mobile-user-card-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.mobile-user-card-info {
+  flex: 1;
+}
+
+.mobile-user-card-name {
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: 2px;
+}
+
+.mobile-user-card-email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mobile-user-card-role {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.mobile-user-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.mobile-user-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-user-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  margin-top: var(--space-xs);
+}
+
+
 .table th {
   padding: 12px 16px;
   font-size: 0.75rem;

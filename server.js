@@ -56,6 +56,26 @@ app.get('/api/health', (req, res) => {
 
 // Public Project API (For QR code scanning, unauthenticated)
 import db from './database/db.js';
+
+app.get('/api/public/projects', async (req, res) => {
+  try {
+    const projectsRes = await db.query(`
+      SELECT p.id, p.name, p.description, p.type, p.status, p.progress_percent,
+        (
+          SELECT json_agg(json_build_object('name', u.name, 'role', pm.role))
+          FROM project_members pm
+          JOIN users u ON pm.user_id = u.id
+          WHERE pm.project_id = p.id
+        ) as members
+      FROM projects p
+      ORDER BY p.status ASC, p.created_at DESC
+    `);
+    res.json({ success: true, data: projectsRes.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 app.get('/api/public/projects/:id', async (req, res) => {
   try {
     const { id } = req.params;

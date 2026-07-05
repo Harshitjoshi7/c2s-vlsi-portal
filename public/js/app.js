@@ -50,6 +50,7 @@ const routes = {
   '/tickets':        { render: renderTickets,      init: initTickets,      auth: true  },
   '/announcements':  { render: renderAnnouncements,init: initAnnouncements,auth: true  },
   '/reports':        { render: renderReports,      init: initReports,      auth: true, admin: true },
+  '/public/projects':{ render: renderPublicProjects,init:initPublicProjects,auth: false },
   '/public/project': { render: renderPublicProject,init: initPublicProject,auth: false }
 };
 

@@ -18,6 +18,9 @@ function renderProjects() {
           <p class="page-subtitle animate-slideUp stagger-1">Manage VLSI lab research projects</p>
         </div>
         <div class="page-header-actions animate-slideUp stagger-2">
+          <button class="btn btn-outline" onclick="generateLabPortfolioQR()" style="margin-right:var(--space-sm)">
+            <i data-lucide="qr-code" style="width:16px;height:16px"></i> Portfolio QR
+          </button>
           <button class="btn btn-primary" id="newProjectBtn">
             <i data-lucide="plus" style="width:16px;height:16px"></i>
             New Project
@@ -510,26 +513,44 @@ async function initProjects() {
   };
 
   window.generateProjectQR = (id) => {
-    const projUrl = \`\${window.location.origin}/public/project/\${id}\`;
-    const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=\${encodeURIComponent(projUrl)}\`;
+    const projUrl = window.location.origin + '/public/project/' + id;
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(projUrl);
     
-    // Create a temporary modal for the QR code
     const qrModal = document.createElement('div');
     qrModal.className = 'modal-overlay';
     qrModal.style.display = 'flex';
-    qrModal.innerHTML = \`
-      <div class="modal animate-slideUp" style="max-width: 400px; text-align: center; padding: var(--space-xl)">
-        <h3 style="margin-top:0;margin-bottom:var(--space-md);color:var(--text-primary)">Project QR Code</h3>
-        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:var(--space-lg)">Scan to view project details publicly</p>
-        <div style="background: white; padding: 16px; border-radius: 8px; display: inline-block; margin-bottom: var(--space-lg)">
-          <img src="\${qrUrl}" alt="QR Code" style="width:250px;height:250px" />
-        </div>
-        <div style="display:flex;gap:var(--space-md);justify-content:center">
-          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
-          <button class="btn btn-primary" onclick="window.open('\${projUrl}', '_blank')">Open Link</button>
-        </div>
-      </div>
-    \`;
+    qrModal.innerHTML = '<div class="modal animate-slideUp" style="max-width:400px;text-align:center;padding:var(--space-xl)">' +
+      '<h3 style="margin-top:0;margin-bottom:var(--space-md);color:var(--text-primary)">Project QR Code</h3>' +
+      '<p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:var(--space-lg)">Scan to view project details publicly</p>' +
+      '<div style="background:white;padding:16px;border-radius:8px;display:inline-block;margin-bottom:var(--space-lg)">' +
+        '<img src="' + qrUrl + '" alt="QR Code" style="width:250px;height:250px" />' +
+      '</div>' +
+      '<div style="display:flex;gap:var(--space-md);justify-content:center">' +
+        '<button class="btn btn-secondary" onclick="this.closest(\'.modal-overlay\').remove()">Close</button>' +
+        '<button class="btn btn-primary" onclick="window.open(\'' + projUrl + '\', \'_blank\')">Open Link</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(qrModal);
+  };
+
+  window.generateLabPortfolioQR = () => {
+    const url = window.location.origin + '/public/projects';
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(url);
+    
+    const qrModal = document.createElement('div');
+    qrModal.className = 'modal-overlay';
+    qrModal.style.display = 'flex';
+    qrModal.innerHTML = '<div class="modal animate-slideUp" style="max-width:400px;text-align:center;padding:var(--space-xl)">' +
+      '<h3 style="margin-top:0;margin-bottom:var(--space-md);color:var(--text-primary)">Lab Portfolio QR</h3>' +
+      '<p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:var(--space-lg)">Scan to view all lab projects publicly</p>' +
+      '<div style="background:white;padding:16px;border-radius:8px;display:inline-block;margin-bottom:var(--space-lg)">' +
+        '<img src="' + qrUrl + '" alt="Portfolio QR Code" style="width:250px;height:250px" />' +
+      '</div>' +
+      '<div style="display:flex;gap:var(--space-md);justify-content:center">' +
+        '<button class="btn btn-secondary" onclick="this.closest(\'.modal-overlay\').remove()">Close</button>' +
+        '<button class="btn btn-primary" onclick="window.open(\'' + url + '\', \'_blank\')">Open Link</button>' +
+      '</div>' +
+    '</div>';
     document.body.appendChild(qrModal);
   };
 
