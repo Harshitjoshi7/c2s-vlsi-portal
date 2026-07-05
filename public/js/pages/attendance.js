@@ -312,6 +312,7 @@ async function initAttendance() {
               <th>Status</th>
               <th>Check In</th>
               <th>Check Out</th>
+              ${isAdminUser ? '<th>Action</th>' : ''}
             </tr>
           </thead>
           <tbody>
@@ -334,6 +335,12 @@ async function initAttendance() {
                   <td style="color:var(--text-muted);font-size:0.85rem">
                     ${rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}
                   </td>
+                  ${isAdminUser ? `
+                  <td>
+                    <button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="unmarkAttendanceRecord(${rec.id})" title="Unmark Attendance">
+                      <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                    </button>
+                  </td>` : ''}
                 </tr>
               `;
             }).join('')}
@@ -343,6 +350,17 @@ async function initAttendance() {
     `;
     if (window.lucide) lucide.createIcons();
   }
+  
+  window.unmarkAttendanceRecord = async (id) => {
+    if (!confirm('Are you sure you want to unmark (delete) this attendance record?')) return;
+    try {
+      await api.delete(`attendance/${id}`);
+      showToast({ message: 'Attendance unmarked successfully.', type: 'success' });
+      await loadAttendance();
+    } catch(err) {
+      showToast({ message: err.message || 'Failed to unmark attendance', type: 'error' });
+    }
+  };
 
   function applyFilters() {
     const statusFilter = document.getElementById('attStatusFilter')?.value || '';
@@ -398,7 +416,7 @@ async function initAttendance() {
   }
 
   ['attStatusFilter','attMonthFilter','attUserFilter'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', applyFilters);
+    document.getElementById(id)?.addEventListener('change', applyFilters);
   });
 
   // Student check-in / unmark
@@ -446,7 +464,7 @@ async function initAttendance() {
 
   async function populateMarkAttModal() {
     const dateInput = document.getElementById('markAttDate');
-    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+    const selectedDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
 
     const listEl = document.getElementById('markAttStudentsList');
     if (!listEl) return;
@@ -456,7 +474,12 @@ async function initAttendance() {
       return;
     }
 
-    listEl.innerHTML = studentsList.map(u => `
+    listEl.innerHTML = studentsList.map(u => {
+      // Find if student already has a record for this date
+      const existing = allAttendance.find(a => String(a.user_id) === String(u.id) && a.attendance_date === selectedDate);
+      const currentStatus = existing ? existing.status : 'present';
+
+      return `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) var(--space-md);background:rgba(255,255,255,0.03);border-radius:var(--border-radius-sm);border:1px solid var(--border-color)">
         <div style="display:flex;align-items:center;gap:var(--space-md)">
           <div class="avatar avatar-sm">${u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}</div>
@@ -466,17 +489,26 @@ async function initAttendance() {
           </div>
         </div>
         <select class="form-select" id="attStatus_${u.id}" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8125rem">
-          <option value="present">Present</option>
-          <option value="absent">Absent</option>
-          <option value="late">Late</option>
-          <option value="on_leave">On Leave</option>
+          <option value="present" ${currentStatus === 'present' ? 'selected' : ''}>Present</option>
+          <option value="absent" ${currentStatus === 'absent' ? 'selected' : ''}>Absent</option>
+          <option value="late" ${currentStatus === 'late' ? 'selected' : ''}>Late</option>
+          <option value="on_leave" ${currentStatus === 'on_leave' ? 'selected' : ''}>On Leave</option>
+          <option value="unmark" style="color:var(--error)">Unmark (Delete)</option>
         </select>
       </div>
-    `).join('');
+      `;
+    }).join('');
     if (window.lucide) lucide.createIcons({ nodes: [listEl] });
   }
 
+  // Re-populate modal when date changes
+  markAttDate?.addEventListener('change', populateMarkAttModal);
+
   document.getElementById('markAttendanceBtn')?.addEventListener('click', async () => {
+    const dateInput = document.getElementById('markAttDate');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = new Date().toISOString().split('T')[0];
+    }
     markAttOverlay.style.display = 'flex';
     await populateMarkAttModal();
   });
@@ -498,25 +530,33 @@ async function initAttendance() {
 
     for (const u of studentsList) {
       const status = document.getElementById(`attStatus_${u.id}`)?.value || 'present';
+      const existing = allAttendance.find(a => String(a.user_id) === String(u.id) && a.attendance_date === date);
+
+      if (status === 'unmark') {
+        if (existing) {
+          try {
+            await api.delete(`attendance/${existing.id}`);
+            successCount++;
+          } catch(e) { failCount++; }
+        }
+        continue;
+      }
+
       try {
-        await api.post('attendance', {
-          user_id: u.id,
-          attendance_date: date,
-          status,
-        });
-        successCount++;
-      } catch(e) {
-        // Try PUT if already exists
-        try {
-          const existing = allAttendance.find(a => String(a.user_id) === String(u.id) && a.attendance_date === date);
-          if (existing) {
+        if (existing) {
+          if (existing.status !== status) {
             await api.put(`attendance/${existing.id}`, { status });
             successCount++;
-          } else {
-            failCount++;
           }
-        } catch { failCount++; }
-      }
+        } else {
+          await api.post('attendance', {
+            user_id: u.id,
+            attendance_date: date,
+            status,
+          });
+          successCount++;
+        }
+      } catch(e) { failCount++; }
     }
 
     spinner.style.display = 'none';
