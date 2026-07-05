@@ -50,6 +50,7 @@ const routes = {
   '/tickets':        { render: renderTickets,      init: initTickets,      auth: true  },
   '/announcements':  { render: renderAnnouncements,init: initAnnouncements,auth: true  },
   '/reports':        { render: renderReports,      init: initReports,      auth: true, admin: true },
+  '/public/project': { render: renderPublicProject,init: initPublicProject,auth: false }
 };
 
 // ── Navigation ────────────────────────────────────────────────
@@ -120,12 +121,13 @@ function renderPage() {
     history.replaceState(null, '', path);
   }
 
-  // Match route — try exact, then try matching /profile/:id pattern
+  // Match route — try exact, then try matching parameterized patterns
   let route = routes[path];
   if (!route) {
-    // Check for parameterized routes
     if (path.startsWith('/profile/')) {
       route = routes['/profile'];
+    } else if (path.startsWith('/public/project/')) {
+      route = routes['/public/project'];
     }
   }
 

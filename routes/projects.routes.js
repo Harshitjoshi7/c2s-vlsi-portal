@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   try {
     const { status } = req.query;
     let query = `
-      SELECT p.*, COUNT(pm.id) as member_count 
+      SELECT p.*, COUNT(pm.id) as member_count, array_agg(pm.user_id) as member_ids
       FROM projects p
       LEFT JOIN project_members pm ON p.id = pm.project_id
     `;

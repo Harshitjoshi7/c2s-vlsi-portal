@@ -39,7 +39,7 @@ function renderProjects() {
               <option value="on_hold">On Hold</option>
               <option value="completed">Completed</option>
             </select>
-            <select class="form-select" id="projTypeFilter" style="width:auto">
+            <select class="form-select" id="projTypeFilter">
               <option value="">All Types</option>
               <option value="ASIC">ASIC</option>
               <option value="FPGA">FPGA</option>
@@ -47,6 +47,11 @@ function renderProjects() {
               <option value="Digital">Digital</option>
               <option value="Mixed-Signal">Mixed-Signal</option>
             </select>
+            ${isAdminUser ? `
+            <select class="form-select" id="projStudentFilter">
+              <option value="">All Students</option>
+            </select>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -173,6 +178,19 @@ async function initProjects() {
   try {
     const res = await api.get('users?role=student');
     allStudents = Array.isArray(res) ? res : (res?.data || []);
+    
+    // Populate student filter if admin
+    if (isAdminUser) {
+      const studentFilter = document.getElementById('projStudentFilter');
+      if (studentFilter) {
+        allStudents.forEach(st => {
+          const opt = document.createElement('option');
+          opt.value = st.id;
+          opt.textContent = st.name;
+          studentFilter.appendChild(opt);
+        });
+      }
+    }
   } catch(e) {
     console.error('Failed to load students');
   }
@@ -291,22 +309,23 @@ async function initProjects() {
     const search = document.getElementById('projSearch')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('projStatusFilter')?.value || '';
     const typeFilter = document.getElementById('projTypeFilter')?.value || '';
+    const studentFilter = document.getElementById('projStudentFilter')?.value || '';
 
     const filtered = allProjects.filter(p => {
       const matchSearch = !search || (p.name || '').toLowerCase().includes(search) || (p.description || '').toLowerCase().includes(search);
       const matchStatus = !statusFilter || p.status === statusFilter;
       const matchType = !typeFilter || p.type === typeFilter;
-      return matchSearch && matchStatus && matchType;
+      const matchStudent = !studentFilter || (p.member_ids && p.member_ids.includes(parseInt(studentFilter)));
+      return matchSearch && matchStatus && matchType && matchStudent;
     });
+
     renderProjects(filtered);
   }
 
-  ['projSearch','projStatusFilter','projTypeFilter'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', applyFilters);
-  });
-
-  // Modal
-  const overlay = document.getElementById('projectModalOverlay');
+  document.getElementById('projSearch')?.addEventListener('input', applyFilters);
+  document.getElementById('projStatusFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('projTypeFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('projStudentFilter')?.addEventListener('change', applyFilters);
   const detailOverlay = document.getElementById('projectDetailOverlay');
 
   function openModal(proj = null) {
@@ -476,6 +495,11 @@ async function initProjects() {
 
     // Admin and members can edit from detail
     document.getElementById('projectDetailFooter').innerHTML = `
+      <div style="flex:1">
+        <button class="btn btn-outline" onclick="generateProjectQR(${proj.id})">
+          <i data-lucide="qr-code" style="width:16px;height:16px"></i> Share QR
+        </button>
+      </div>
       <button class="btn btn-secondary" id="projectDetailCloseBtn2">Close</button>
       <button class="btn btn-primary" onclick="editProject(${proj.id});document.getElementById('projectDetailOverlay').style.display='none'">
         <i data-lucide="pencil" style="width:16px;height:16px"></i> Edit
@@ -483,6 +507,30 @@ async function initProjects() {
     `;
     document.getElementById('projectDetailCloseBtn2')?.addEventListener('click', closeDetailModal);
     if (window.lucide) lucide.createIcons({ nodes: [document.getElementById('projectDetailFooter')] });
+  };
+
+  window.generateProjectQR = (id) => {
+    const projUrl = \`\${window.location.origin}/public/project/\${id}\`;
+    const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=\${encodeURIComponent(projUrl)}\`;
+    
+    // Create a temporary modal for the QR code
+    const qrModal = document.createElement('div');
+    qrModal.className = 'modal-overlay';
+    qrModal.style.display = 'flex';
+    qrModal.innerHTML = \`
+      <div class="modal animate-slideUp" style="max-width: 400px; text-align: center; padding: var(--space-xl)">
+        <h3 style="margin-top:0;margin-bottom:var(--space-md);color:var(--text-primary)">Project QR Code</h3>
+        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:var(--space-lg)">Scan to view project details publicly</p>
+        <div style="background: white; padding: 16px; border-radius: 8px; display: inline-block; margin-bottom: var(--space-lg)">
+          <img src="\${qrUrl}" alt="QR Code" style="width:250px;height:250px" />
+        </div>
+        <div style="display:flex;gap:var(--space-md);justify-content:center">
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+          <button class="btn btn-primary" onclick="window.open('\${projUrl}', '_blank')">Open Link</button>
+        </div>
+      </div>
+    \`;
+    document.body.appendChild(qrModal);
   };
 
   window.editProject = (id) => {

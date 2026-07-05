@@ -54,6 +54,29 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
 });
 
+// Public Project API (For QR code scanning, unauthenticated)
+import db from './database/db.js';
+app.get('/api/public/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const projectRes = await db.query('SELECT name, description, type, status, progress_percent FROM projects WHERE id = $1', [id]);
+    const project = projectRes.rows[0];
+
+    if (!project) return res.status(404).json({ success: false, error: 'Project not found.' });
+
+    const membersRes = await db.query(`
+      SELECT u.name, u.role
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.project_id = $1
+    `, [id]);
+
+    res.json({ success: true, data: { ...project, members: membersRes.rows } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // SPA fallback — serve index.html for all non-API routes
 app.get('*', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');

@@ -61,7 +61,7 @@ function renderReports() {
       </div>
 
       <!-- Charts Row 1 -->
-      <div class="grid" style="grid-template-columns:2fr 1fr;gap:var(--space-lg);margin-bottom:var(--space-lg)">
+      <div class="grid grid-dashboard" style="margin-bottom:var(--space-lg);gap:var(--space-lg)">
         <div class="card animate-slideUp stagger-3">
           <div class="card-header">
             <h4><i data-lucide="trending-up" style="width:18px;height:18px;vertical-align:-3px;margin-right:8px;color:var(--accent-primary)"></i>Attendance Trend</h4>
@@ -84,7 +84,7 @@ function renderReports() {
       </div>
 
       <!-- Charts Row 2 -->
-      <div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-bottom:var(--space-lg)">
+      <div class="grid grid-2" style="margin-bottom:var(--space-lg);gap:var(--space-lg)">
         <div class="card animate-slideUp stagger-5">
           <div class="card-header">
             <h4><i data-lucide="folder-git-2" style="width:18px;height:18px;vertical-align:-3px;margin-right:8px;color:var(--accent-secondary)"></i>Project Progress</h4>
