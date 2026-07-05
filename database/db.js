@@ -3,6 +3,16 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import webpush from 'web-push';
+
+// Configure VAPID keys for web push
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:' + (process.env.VAPID_EMAIL || 'admin@c2s.edu'),
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 const { Pool } = pg;
 
@@ -91,10 +101,42 @@ export async function seedDatabase() {
 }
 
 export async function createNotification(userId, type, title, message, link = null) {
-  return db.query(`
+  // 1. Insert the in-app notification
+  await db.query(`
     INSERT INTO notifications (user_id, type, title, message, link)
     VALUES ($1, $2, $3, $4, $5)
   `, [userId, type, title, message, link]);
+
+  // 2. Fire web push to all registered devices (fire-and-forget)
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    try {
+      const subsRes = await db.query(
+        'SELECT * FROM push_subscriptions WHERE user_id = $1',
+        [userId]
+      );
+      const payload = JSON.stringify({ title, body: message || title, link: link || '/dashboard' });
+
+      await Promise.allSettled(
+        subsRes.rows.map(async (sub) => {
+          const pushSub = {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth }
+          };
+          try {
+            await webpush.sendNotification(pushSub, payload);
+          } catch (err) {
+            // 404/410 = subscription expired — remove it
+            if (err.statusCode === 404 || err.statusCode === 410) {
+              await db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+            }
+          }
+        })
+      );
+    } catch (err) {
+      // Never let push failures break the caller
+      console.error('Push notification dispatch error:', err.message);
+    }
+  }
 }
 
 export default db;

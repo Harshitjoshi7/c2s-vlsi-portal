@@ -163,6 +163,10 @@ function renderPage() {
     app.innerHTML = renderAppLayout(contentHtml);
     initSidebar();
     if (typeof initNotifBell === 'function') initNotifBell();
+    // Kick off push setup after first render (delayed so it doesn't block)
+    if (typeof initPushNotifications === 'function') {
+      setTimeout(initPushNotifications, 2000);
+    }
   } else {
     app.innerHTML = contentHtml;
   }

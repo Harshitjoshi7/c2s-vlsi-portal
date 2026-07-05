@@ -87,24 +87,46 @@ function renderSidebar() {
 }
 
 function initSidebar() {
-  // Mobile toggle
-  const menuToggle = document.getElementById('menuToggle');
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
 
-  if (menuToggle && sidebar) {
+  function openSidebar() {
+    if (sidebar) sidebar.classList.add('is-open');
+    if (overlay) overlay.classList.add('is-open');
+  }
+
+  function closeSidebar() {
+    if (sidebar) sidebar.classList.remove('is-open');
+    if (overlay) overlay.classList.remove('is-open');
+  }
+
+  // Floating toggle (fixed position, visible at 1024px+)
+  const menuToggle = document.getElementById('menuToggle');
+  if (menuToggle) {
     menuToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('is-open');
-      overlay.classList.toggle('is-open');
+      sidebar.classList.contains('is-open') ? closeSidebar() : openSidebar();
     });
   }
 
-  if (overlay) {
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('is-open');
-      overlay.classList.remove('is-open');
+  // Inline toggle (inside top header bar — primary on mobile)
+  const menuToggleInline = document.getElementById('menuToggleInline');
+  if (menuToggleInline) {
+    menuToggleInline.addEventListener('click', () => {
+      sidebar.classList.contains('is-open') ? closeSidebar() : openSidebar();
     });
   }
+
+  // Close when tapping the overlay
+  if (overlay) {
+    overlay.addEventListener('click', closeSidebar);
+  }
+
+  // Close sidebar on nav item click (mobile UX — page changes)
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 1024) closeSidebar();
+    });
+  });
 
   // Logout
   const logoutBtn = document.getElementById('logoutBtn');

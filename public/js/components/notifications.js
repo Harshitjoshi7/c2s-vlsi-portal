@@ -149,3 +149,78 @@ function timeAgo(dateStr) {
 
 window.initNotifBell = initNotifBell;
 window.timeAgo = timeAgo;
+
+/* ── Push Notification Setup ───────────────────────────────── */
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function initPushNotifications() {
+  // Only run if browser supports push
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  // Don't re-ask if already granted/denied
+  if (Notification.permission === 'denied') return;
+
+  try {
+    // 1. Get VAPID public key from server
+    const keyRes = await api.get('notifications/vapid-public-key');
+    const publicKey = keyRes?.data?.publicKey || keyRes?.publicKey;
+    if (!publicKey) return;
+
+    // 2. Get the active service worker registration
+    const registration = await navigator.serviceWorker.ready;
+
+    // 3. Check if already subscribed
+    const existingSub = await registration.pushManager.getSubscription();
+    if (existingSub) {
+      // Already subscribed — re-register with server in case it expired
+      await _sendSubToServer(existingSub);
+      return;
+    }
+
+    // 4. Request permission (will show browser prompt)
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    // 5. Subscribe via PushManager
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+
+    // 6. Send subscription to server
+    await _sendSubToServer(subscription);
+
+    showToast({ message: '🔔 Push notifications enabled!', type: 'success' });
+  } catch (err) {
+    // Silently fail — push is non-critical
+    console.warn('Push subscription setup failed:', err.message);
+  }
+}
+
+async function _sendSubToServer(subscription) {
+  const sub = subscription.toJSON();
+  try {
+    await api.post('notifications/subscribe', {
+      endpoint: sub.endpoint,
+      keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }
+    });
+  } catch (e) {}
+}
+
+// Listen for NAVIGATE messages from service worker (push notification tap)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'NAVIGATE' && event.data.link) {
+      if (typeof navigate === 'function') navigate(event.data.link);
+    }
+  });
+}
+
+window.initPushNotifications = initPushNotifications;
+

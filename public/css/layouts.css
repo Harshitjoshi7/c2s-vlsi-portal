@@ -703,25 +703,49 @@
     display: flex;
   }
 
+  .menu-toggle-inline {
+    display: flex;
+  }
+
   .grid-3 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .main-content {
-    padding: var(--space-lg) var(--space-md);
-    padding-top: calc(var(--space-lg) + 56px);
+  /* ── Top Header ── */
+  .top-header {
+    padding: 0 var(--space-md);
+    height: 52px;
   }
 
+  /* ── Main Content ── */
+  .main-content {
+    padding: var(--space-md) var(--space-md);
+    padding-top: calc(var(--space-md) + 60px);
+  }
+
+  /* ── Page Header ── */
   .page-header {
     flex-direction: column;
+    gap: var(--space-md);
   }
 
   .page-title {
-    font-size: 1.375rem;
+    font-size: 1.25rem;
   }
 
+  .page-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* ── Grids ── */
   .grid-2,
   .grid-3,
   .grid-4 {
@@ -729,20 +753,172 @@
   }
 
   .grid-stats {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .stat-card-value {
     font-size: 1.5rem;
   }
+
+  /* ── Notification Bell — bigger touch target ── */
+  .notif-bell {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* ── Notification Panel — full screen on mobile ── */
+  .notif-panel {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: calc(100vh - 52px);
+    border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    z-index: 200;
+  }
+
+  .notif-list {
+    max-height: calc(100vh - 160px);
+  }
+
+  .notif-item {
+    padding: var(--space-md);
+    min-height: 64px;  /* Comfortable touch target */
+  }
+
+  .notif-item-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  /* ── Sidebar — wider, touch-friendly ── */
+  .sidebar {
+    width: min(280px, 85vw);
+  }
+
+  .nav-item {
+    padding: 13px 12px;
+    font-size: 0.9375rem;
+    min-height: 48px;  /* WCAG touch target */
+    margin-bottom: 4px;
+  }
+
+  .nav-item-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* ── Menu toggle — bigger hit area ── */
+  .menu-toggle {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* ── Buttons — larger on mobile ── */
+  .btn {
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    min-height: 36px;
+  }
+
+  /* ── Tables — horizontal scroll ── */
+  .table-container {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table th,
+  .table td {
+    padding: 12px 12px;
+    font-size: 0.8125rem;
+  }
+
+  /* ── Cards ── */
+  .card-body {
+    padding: var(--space-md);
+  }
+
+  .card-header {
+    padding: var(--space-md);
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
 }
 
 @media (max-width: 480px) {
   .login-card {
-    padding: var(--space-xl) var(--space-lg);
+    padding: var(--space-xl) var(--space-md);
   }
 
   .grid-stats {
     grid-template-columns: 1fr;
+  }
+
+  .page-title {
+    font-size: 1.125rem;
+  }
+
+  /* ── Stat cards — compact ── */
+  .stat-card {
+    padding: var(--space-md);
+  }
+
+  .stat-card-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .stat-card-value {
+    font-size: 1.375rem;
+  }
+
+  /* ── Section header — stack actions ── */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  /* ── Toast — full width on very small screens ── */
+  .toast-container {
+    left: var(--space-sm);
+    right: var(--space-sm);
+    top: auto;
+    bottom: var(--space-lg);
+  }
+
+  /* ── Modal — full screen ── */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal {
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+    max-height: 92vh;
+  }
+}
+
+/* ── Safe area insets (iPhone notch / home indicator) ── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .top-header {
+    padding-left: max(var(--space-md), env(safe-area-inset-left));
+    padding-right: max(var(--space-md), env(safe-area-inset-right));
+  }
+
+  @media (max-width: 480px) {
+    .toast-container {
+      bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+    }
   }
 }

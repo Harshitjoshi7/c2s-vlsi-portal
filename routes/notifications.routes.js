@@ -74,4 +74,52 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
+// GET /api/notifications/vapid-public-key — send public key to frontend
+router.get('/vapid-public-key', (req, res) => {
+  const key = process.env.VAPID_PUBLIC_KEY;
+  if (!key) {
+    return res.status(503).json({ success: false, error: 'Push notifications not configured.' });
+  }
+  res.json({ success: true, data: { publicKey: key } });
+});
+
+// POST /api/notifications/subscribe — save a device push subscription
+router.post('/subscribe', async (req, res) => {
+  try {
+    const { endpoint, keys } = req.body;
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ success: false, error: 'Invalid subscription payload.' });
+    }
+
+    // Upsert: if the same endpoint re-registers (e.g. after SW update), update keys
+    await db.query(`
+      INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (endpoint) DO UPDATE SET user_id = $1, p256dh = $3, auth = $4
+    `, [req.user.id, endpoint, keys.p256dh, keys.auth]);
+
+    res.json({ success: true, data: { message: 'Subscribed to push notifications.' } });
+  } catch (error) {
+    console.error('Subscribe error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// DELETE /api/notifications/unsubscribe — remove a device push subscription
+router.delete('/unsubscribe', async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    if (!endpoint) return res.status(400).json({ success: false, error: 'Endpoint required.' });
+
+    await db.query(
+      'DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2',
+      [req.user.id, endpoint]
+    );
+    res.json({ success: true, data: { message: 'Unsubscribed.' } });
+  } catch (error) {
+    console.error('Unsubscribe error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
 export default router;
