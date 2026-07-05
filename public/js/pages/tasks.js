@@ -201,76 +201,134 @@ async function initTasks() {
     if (!container) return;
 
     if (!tasks || tasks.length === 0) {
-      container.innerHTML = `
+      container.innerHTML = \`
         <div class="card"><div class="card-body">
           <div class="empty-state">
             <div class="empty-state-icon"><i data-lucide="check-square" style="width:28px;height:28px"></i></div>
             <div class="empty-state-title">No tasks found</div>
-            <div class="empty-state-description">${isAdminUser ? 'Create the first task.' : 'No tasks assigned to you yet.'}</div>
+            <div class="empty-state-description">\${isAdminUser ? 'Create the first task.' : 'No tasks assigned to you yet.'}</div>
           </div>
         </div></div>
-      `;
+      \`;
       if (window.lucide) lucide.createIcons();
       return;
     }
 
-    container.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:var(--space-md)">
-        ${tasks.map(task => {
-          const pri = priorityConfig[task.priority] || priorityConfig.medium;
-          const st = statusConfig[task.status] || statusConfig.assigned;
-          const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
+    if (isAdminUser) {
+      const assignments = [];
+      tasks.forEach(task => {
+        if (task.assignees && task.assignees.length > 0) {
+          task.assignees.forEach(a => assignments.push({ task, student: a }));
+        } else {
+          assignments.push({ task, student: null });
+        }
+      });
 
-          return `
-            <div class="card" style="border-left:3px solid ${pri.color};transition:all 0.2s">
-              <div class="card-body" style="padding:var(--space-lg)">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-md)">
-                  <div style="flex:1">
-                    <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:8px">
-                      <span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase;letter-spacing:0.04em">${pri.label}</span>
-                      <span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>
-                      ${task.category ? `<span class="badge badge-info">${task.category}</span>` : ''}
-                      ${isOverdue ? `<span class="badge badge-error">Overdue</span>` : ''}
-                    </div>
-                    <h4 style="margin:0 0 8px;font-size:0.9375rem">${task.title}</h4>
-                    ${task.description ? `<p style="color:var(--text-muted);font-size:0.85rem;margin:0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${task.description}</p>` : ''}
-                    <div style="display:flex;align-items:center;gap:var(--space-lg);margin-top:var(--space-sm)">
-                      ${task.deadline ? `<span style="font-size:0.8rem;color:${isOverdue ? 'var(--error)' : 'var(--text-muted)'}"><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>${new Date(task.deadline).toLocaleDateString()}</span>` : ''}
-                      ${task.assignees && task.assignees.length > 0 ? `
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-                          ${task.assignees.map(a => {
-                            const ast = statusConfig[a.status] || statusConfig.assigned;
-                            return \`<span style="font-size:0.75rem;padding:2px 8px;border-radius:12px;background:\${ast.bg};color:\${ast.color};display:flex;align-items:center;gap:4px;border:1px solid \${ast.color}33" title="Status: \${ast.label}">
-                              <i data-lucide="user" style="width:10px;height:10px"></i> \${a.name || a}
-                            </span>\`;
-                          }).join('')}
+      container.innerHTML = \`
+        <div class="card" style="overflow-x:auto">
+          <table class="table" style="width:100%;text-align:left;border-collapse:collapse;min-width:600px">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border-color);background:rgba(255,255,255,0.02)">
+                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Student</th>
+                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Task Name</th>
+                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Priority</th>
+                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Status</th>
+                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Deadline</th>
+                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              \${assignments.map(item => {
+                const task = item.task;
+                const student = item.student;
+                const pri = priorityConfig[task.priority] || priorityConfig.medium;
+                const st = statusConfig[student ? student.status : task.status] || statusConfig.assigned;
+                const isOverdue = task.deadline && new Date(task.deadline) < new Date() && (student ? student.status !== 'completed' : task.status !== 'completed');
+                
+                return \`
+                  <tr style="border-bottom:1px solid var(--border-color);transition:background 0.2s">
+                    <td style="padding:12px;vertical-align:middle">
+                      \${student ? \`
+                        <div style="display:flex;align-items:center;gap:8px">
+                          <div style="width:28px;height:28px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:var(--text-primary)">
+                            \${student.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span style="font-weight:500">\${student.name}</span>
                         </div>
-                      ` : ''}
-                  </div>
-                  <div style="display:flex;gap:4px;flex-shrink:0">
-                    ${!isAdminUser && task.status !== 'completed' ? `
-                    <select class="form-select btn-sm" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
-                      <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                      <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
-                      <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
-                    </select>
-                    ` : ''}
-                    ${isAdminUser ? `
-                    <button class="btn btn-ghost btn-sm" onclick="editTask(${task.id})" title="Edit">
-                      <i data-lucide="pencil" style="width:14px;height:14px"></i>
-                    </button>
-                    <button class="btn btn-ghost btn-sm" onclick="deleteTask(${task.id})" style="color:var(--error)" title="Delete">
-                      <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-                    </button>
-                    ` : ''}
+                      \` : '<span style="color:var(--text-muted);font-style:italic">Unassigned</span>'}
+                    </td>
+                    <td style="padding:12px;vertical-align:middle">
+                      <div style="font-weight:500;color:var(--text-primary);margin-bottom:4px">\${task.title}</div>
+                      \${task.category ? \`<span class="badge badge-info" style="font-size:0.65rem">\${task.category}</span>\` : ''}
+                    </td>
+                    <td style="padding:12px;vertical-align:middle">
+                      <span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase">\${pri.label}</span>
+                    </td>
+                    <td style="padding:12px;vertical-align:middle">
+                      <span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:600;background:\${st.bg};color:\${st.color}">\${st.label}</span>
+                    </td>
+                    <td style="padding:12px;vertical-align:middle">
+                      \${task.deadline ? \`<span style="font-size:0.8rem;color:\${isOverdue ? 'var(--error)' : 'var(--text-muted)'}">\${new Date(task.deadline).toLocaleDateString()}</span>\` : '-'}
+                    </td>
+                    <td style="padding:12px;vertical-align:middle">
+                      <div style="display:flex;gap:4px">
+                        <button class="btn btn-ghost btn-sm" onclick="editTask(\${task.id})" title="Edit Task">
+                          <i data-lucide="pencil" style="width:14px;height:14px"></i>
+                        </button>
+                        <button class="btn btn-ghost btn-sm" onclick="deleteTask(\${task.id})" style="color:var(--error)" title="Delete Task">
+                          <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                \`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      \`;
+    } else {
+      container.innerHTML = \`
+        <div style="display:flex;flex-direction:column;gap:var(--space-md)">
+          \${tasks.map(task => {
+            const pri = priorityConfig[task.priority] || priorityConfig.medium;
+            const st = statusConfig[task.status] || statusConfig.assigned;
+            const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
+
+            return \`
+              <div class="card" style="border-left:3px solid \${pri.color};transition:all 0.2s">
+                <div class="card-body" style="padding:var(--space-lg)">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-md)">
+                    <div style="flex:1">
+                      <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:8px">
+                        <span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase;letter-spacing:0.04em">\${pri.label}</span>
+                        <span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:\${st.bg};color:\${st.color}">\${st.label}</span>
+                        \${task.category ? \`<span class="badge badge-info">\${task.category}</span>\` : ''}
+                        \${isOverdue ? \`<span class="badge badge-error">Overdue</span>\` : ''}
+                      </div>
+                      <h4 style="margin:0 0 8px;font-size:0.9375rem">\${task.title}</h4>
+                      \${task.description ? \`<p style="color:var(--text-muted);font-size:0.85rem;margin:0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">\${task.description}</p>\` : ''}
+                      <div style="display:flex;align-items:center;gap:var(--space-lg);margin-top:var(--space-sm)">
+                        \${task.deadline ? \`<span style="font-size:0.8rem;color:\${isOverdue ? 'var(--error)' : 'var(--text-muted)'}"><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>\${new Date(task.deadline).toLocaleDateString()}</span>\` : ''}
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:4px;flex-shrink:0">
+                      \${task.status !== 'completed' ? \`
+                      <select class="form-select btn-sm" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8rem" onchange="updateTaskStatus(\${task.id}, this.value)">
+                        <option value="in_progress" \${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="under_review" \${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+                        <option value="completed" \${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                      </select>
+                      \` : ''}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
+            \`;
+          }).join('')}
+        </div>
+      \`;
+    }
     if (window.lucide) lucide.createIcons();
   }
 
