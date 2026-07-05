@@ -116,6 +116,16 @@ function renderPage() {
 
   let path = window.location.pathname;
 
+  // Check if we were redirected here by the serverless SPA fallback
+  const redirectPath = sessionStorage.getItem('c2s_redirect');
+  if (redirectPath) {
+    sessionStorage.removeItem('c2s_redirect');
+    if (redirectPath !== '/' && redirectPath !== path) {
+      history.replaceState(null, '', redirectPath);
+      path = redirectPath;
+    }
+  }
+
   // Normalize path
   if (path === '/' || path === '') {
     path = isLoggedIn() ? '/dashboard' : '/login';

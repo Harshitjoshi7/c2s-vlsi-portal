@@ -98,25 +98,50 @@ app.get('/api/public/projects/:id', async (req, res) => {
 });
 
 // SPA fallback — serve index.html for all non-API routes
+// On Vercel serverless, sendFile doesn't work because public/ is deployed
+// separately by @vercel/static. So we read the file at startup or fall back
+// to an inline HTML shell that loads the app.
+import fs from 'fs';
+
+let indexHtml = null;
+try {
+  indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+} catch (e) {
+  // Will use inline fallback on Vercel
+}
+
 app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      res.status(200).json({
-        success: true,
-        data: {
-          message: 'C2S VLSI Lab Management Portal API',
-          version: '1.0.0',
-          endpoints: [
-            '/api/auth', '/api/users', '/api/daily-logs', '/api/projects',
-            '/api/tasks', '/api/pcs', '/api/tickets', '/api/attendance',
-            '/api/leave-requests', '/api/announcements', '/api/notifications',
-            '/api/github',
-          ],
-        },
-      });
-    }
-  });
+  // Don't intercept API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'API endpoint not found' });
+  }
+
+  if (indexHtml) {
+    res.set('Content-Type', 'text/html');
+    return res.send(indexHtml);
+  }
+
+  // Inline fallback: a minimal HTML page that redirects to root
+  // so the static index.html + SPA router can take over
+  res.set('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C2S VLSI Lab Portal</title>
+<script>
+  // SPA fallback: redirect to root so the static server can serve index.html
+  // The hash preserves the intended route for the client-side router
+  if (window.location.pathname !== '/') {
+    var intended = window.location.pathname + window.location.search;
+    sessionStorage.setItem('c2s_redirect', intended);
+    window.location.replace('/');
+  }
+</script>
+</head>
+<body style="background:#0a0e27;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif">
+<p>Loading...</p>
+</body></html>`);
 });
 
 // Initialize database and start server (if not in serverless environment)
