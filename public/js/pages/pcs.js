@@ -262,7 +262,18 @@ async function initPCs() {
       <div class="grid grid-auto-fit" style="gap:var(--space-lg)">
         ${pcs.map(pc => {
           const cond = conditionConfig[pc.condition] || conditionConfig.good;
-          const assignee = pc.current_assignment;
+          
+          let assignee = null;
+          if (isAdminUser) {
+            assignee = pc.current_assignment;
+          } else {
+            // For students, any PC returned by the API is assigned to them
+            assignee = {
+              user_name: user.name,
+              assigned_date: pc.assigned_at || new Date().toISOString()
+            };
+          }
+          
           const software = parseJSON(pc.installed_software, []);
           const specsObj = parseJSON(pc.specs, {});
           const specsStr = typeof specsObj === 'string' ? specsObj : Object.entries(specsObj).map(([k,v]) => `${k}: ${v}`).join(', ');
