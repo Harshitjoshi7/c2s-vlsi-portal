@@ -132,6 +132,33 @@ function renderTickets() {
                 </select>
               </div>
             </div>
+            <div class="form-group" id="ticketPCGroup" style="display:none">
+              <label class="form-label">Related PC / Workstation</label>
+              <select class="form-select" id="ticketPC">
+                <option value="">— Select PC —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Attach Image (optional)</label>
+              <div style="display:flex;gap:var(--space-sm);align-items:center">
+                <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">
+                  <i data-lucide="image" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"></i> Choose File
+                  <input type="file" id="ticketImage" accept="image/*" style="display:none" />
+                </label>
+                <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">
+                  <i data-lucide="camera" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"></i> Camera
+                  <input type="file" id="ticketCamera" accept="image/*" capture="environment" style="display:none" />
+                </label>
+              </div>
+              <div id="ticketImagePreview" style="margin-top:var(--space-sm);display:none">
+                <div style="position:relative;display:inline-block">
+                  <img id="ticketImagePreviewImg" style="max-width:200px;max-height:150px;border-radius:var(--border-radius-sm);border:1px solid var(--border-color)" />
+                  <button type="button" class="btn btn-ghost btn-sm" id="ticketImageRemove" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border-radius:50%;padding:2px;color:#fff">
+                    <i data-lucide="x" style="width:12px;height:12px"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
             <div class="form-group" id="ticketAdminFields" style="display:none">
               <label class="form-label">Status</label>
               <select class="form-select" id="ticketStatus">
@@ -164,6 +191,25 @@ async function initTickets() {
   const isAdminUser = user && user.role === 'admin';
   let allTickets = [];
   let editingTicketId = null;
+  let myPCs = [];
+  let ticketImageBase64 = null;
+
+  // Load student's assigned PCs
+  if (!isAdminUser) {
+    try {
+      const pcRes = await api.get('pcs/my');
+      myPCs = Array.isArray(pcRes) ? pcRes : (pcRes?.data || []);
+      const pcSelect = document.getElementById('ticketPC');
+      if (pcSelect) {
+        myPCs.forEach(pc => {
+          const opt = document.createElement('option');
+          opt.value = pc.id;
+          opt.textContent = pc.pc_name || pc.name || `PC #${pc.id}`;
+          pcSelect.appendChild(opt);
+        });
+      }
+    } catch(e) {}
+  }
 
   async function loadTickets() {
     try {
@@ -295,9 +341,52 @@ async function initTickets() {
   const overlay = document.getElementById('ticketModalOverlay');
   const adminFields = document.getElementById('ticketAdminFields');
   const resolutionGroup = document.getElementById('ticketResolutionGroup');
+  const pcGroup = document.getElementById('ticketPCGroup');
 
   if (adminFields && isAdminUser) adminFields.style.display = '';
   if (resolutionGroup && isAdminUser) resolutionGroup.style.display = '';
+
+  // Show/hide PC selector based on issue type
+  function updatePCVisibility() {
+    const typeVal = document.getElementById('ticketType')?.value;
+    if (pcGroup) {
+      pcGroup.style.display = (typeVal === 'hardware' && !isAdminUser) ? '' : 'none';
+    }
+  }
+  document.getElementById('ticketType')?.addEventListener('change', updatePCVisibility);
+  updatePCVisibility();
+
+  // Image upload handlers
+  function handleImageSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast({ message: 'Image must be under 5MB', type: 'warning' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      ticketImageBase64 = ev.target.result;
+      const preview = document.getElementById('ticketImagePreview');
+      const previewImg = document.getElementById('ticketImagePreviewImg');
+      if (preview && previewImg) {
+        previewImg.src = ticketImageBase64;
+        preview.style.display = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  document.getElementById('ticketImage')?.addEventListener('change', handleImageSelect);
+  document.getElementById('ticketCamera')?.addEventListener('change', handleImageSelect);
+  document.getElementById('ticketImageRemove')?.addEventListener('click', () => {
+    ticketImageBase64 = null;
+    const preview = document.getElementById('ticketImagePreview');
+    if (preview) preview.style.display = 'none';
+    const imgInput = document.getElementById('ticketImage');
+    const camInput = document.getElementById('ticketCamera');
+    if (imgInput) imgInput.value = '';
+    if (camInput) camInput.value = '';
+  });
 
   document.getElementById('ticketStatus')?.addEventListener('change', function() {
     if (resolutionGroup) {
@@ -305,12 +394,26 @@ async function initTickets() {
     }
   });
 
-  function openModal(ticket = null) {
+  function openModal(ticket = null, preselectedPCId = null) {
     editingTicketId = ticket ? ticket.id : null;
     document.getElementById('ticketModalTitle').textContent = ticket ? 'Update Ticket' : 'New Ticket';
     document.getElementById('ticketDesc').value = ticket?.description || '';
     document.getElementById('ticketType').value = ticket?.issue_type || 'hardware';
     document.getElementById('ticketPriority').value = ticket?.priority || 'medium';
+    // Reset image
+    ticketImageBase64 = null;
+    const preview = document.getElementById('ticketImagePreview');
+    if (preview) preview.style.display = 'none';
+    const imgInput = document.getElementById('ticketImage');
+    const camInput = document.getElementById('ticketCamera');
+    if (imgInput) imgInput.value = '';
+    if (camInput) camInput.value = '';
+    // Set PC
+    const pcSelect = document.getElementById('ticketPC');
+    if (pcSelect) {
+      pcSelect.value = preselectedPCId || ticket?.pc_id || '';
+    }
+    updatePCVisibility();
     if (isAdminUser) {
       document.getElementById('ticketStatus').value = ticket?.status || 'open';
       document.getElementById('ticketResolution').value = ticket?.resolution_notes || '';
@@ -319,6 +422,7 @@ async function initTickets() {
     }
     document.getElementById('ticketSubmitText').textContent = ticket ? 'Update Ticket' : 'Submit Ticket';
     overlay.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
   }
   function closeModal() { overlay.style.display = 'none'; editingTicketId = null; }
 
@@ -336,6 +440,15 @@ async function initTickets() {
       issue_type: document.getElementById('ticketType').value,
       priority: document.getElementById('ticketPriority').value,
     };
+
+    // Add PC ID if hardware type
+    const pcVal = document.getElementById('ticketPC')?.value;
+    if (pcVal) payload.pc_id = parseInt(pcVal);
+
+    // Add screenshot if attached
+    if (ticketImageBase64) {
+      payload.screenshots = [ticketImageBase64];
+    }
 
     if (isAdminUser) {
       payload.status = document.getElementById('ticketStatus').value;
@@ -369,6 +482,19 @@ async function initTickets() {
     const t = allTickets.find(t => t.id === id);
     if (t) openModal(t);
   };
+
+  // Global function so PCs page can open the ticket modal with a pre-selected PC
+  window.openTicketForPC = (pcId) => {
+    openModal(null, pcId);
+  };
+
+  // Check if we navigated here with a PC ID to pre-select
+  const pendingPCId = sessionStorage.getItem('c2s_ticket_pc_id');
+  if (pendingPCId) {
+    sessionStorage.removeItem('c2s_ticket_pc_id');
+    // Short delay to let the page fully render
+    setTimeout(() => openModal(null, parseInt(pendingPCId)), 300);
+  }
 
   await loadTickets();
 }

@@ -328,7 +328,7 @@ async function initPCs() {
 
                 ${!isAdminUser ? `
                 <div style="margin-top:var(--space-md)">
-                  <button class="btn btn-secondary btn-sm" onclick="navigate('/tickets')" style="width:100%">
+                  <button class="btn btn-secondary btn-sm" onclick="reportIssueForPC(${pc.id})" style="width:100%">
                     <i data-lucide="ticket" style="width:14px;height:14px"></i>
                     Report Issue
                   </button>
@@ -535,3 +535,9 @@ async function initPCs() {
 
 window.renderPCs = renderPCs;
 window.initPCs = initPCs;
+
+// Global function for the "Report Issue" button on each PC card
+window.reportIssueForPC = function(pcId) {
+  sessionStorage.setItem('c2s_ticket_pc_id', pcId);
+  navigate('/tickets');
+};
