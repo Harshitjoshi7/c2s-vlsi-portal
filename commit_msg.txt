@@ -1,8 +1,0 @@
-fix: resolve js syntax crash, fix mobile zoom, add lab portfolio
-
-- Fixed the fatal JS syntax error in projects.js that caused a blank page (replaced escaped template literals with string concatenation)
-- Fixed Users page mobile layout: replaced table with responsive card layout on screens <= 768px
-- Fixed Reports page mobile layout: allowed export header actions to flex and wrap properly
-- Added new Public Projects Showcase page for all lab projects
-- Added unauthenticated GET /api/public/projects endpoint
-- Added "Portfolio QR" button to Projects page header

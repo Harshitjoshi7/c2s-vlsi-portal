@@ -329,7 +329,9 @@ async function initProjects() {
   document.getElementById('projStatusFilter')?.addEventListener('change', applyFilters);
   document.getElementById('projTypeFilter')?.addEventListener('change', applyFilters);
   document.getElementById('projStudentFilter')?.addEventListener('change', applyFilters);
+  
   const detailOverlay = document.getElementById('projectDetailOverlay');
+  const overlay = document.getElementById('projectModalOverlay');
 
   function openModal(proj = null) {
     editingProjectId = proj ? proj.id : null;
@@ -354,11 +356,11 @@ async function initProjects() {
     }
 
     document.getElementById('projSubmitText').textContent = proj ? 'Update Project' : 'Create Project';
-    overlay.style.display = 'flex';
+    if (overlay) overlay.style.display = 'flex';
   }
 
-  function closeModal() { overlay.style.display = 'none'; editingProjectId = null; }
-  function closeDetailModal() { detailOverlay.style.display = 'none'; }
+  function closeModal() { if (overlay) overlay.style.display = 'none'; editingProjectId = null; }
+  function closeDetailModal() { if (detailOverlay) detailOverlay.style.display = 'none'; }
 
   document.getElementById('newProjectBtn')?.addEventListener('click', () => openModal());
   document.getElementById('projectModalClose')?.addEventListener('click', closeModal);
