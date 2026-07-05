@@ -13,7 +13,7 @@ const attachAssignees = async (tasks) => {
   const taskIds = tasks.map(t => t.id);
   const placeholders = taskIds.map((_, i) => `$${i + 1}`).join(',');
   const assignmentsRes = await db.query(`
-    SELECT ta.task_id, u.name, u.id as user_id 
+    SELECT ta.task_id, ta.status as assignment_status, u.name, u.id as user_id 
     FROM task_assignments ta 
     JOIN users u ON ta.user_id = u.id 
     WHERE ta.task_id IN (${placeholders})
@@ -22,7 +22,7 @@ const attachAssignees = async (tasks) => {
   const assigneesByTask = {};
   for (const a of assignmentsRes.rows) {
     if (!assigneesByTask[a.task_id]) assigneesByTask[a.task_id] = [];
-    assigneesByTask[a.task_id].push({ id: a.user_id, name: a.name });
+    assigneesByTask[a.task_id].push({ id: a.user_id, name: a.name, status: a.assignment_status || 'assigned' });
   }
 
   return tasks.map(t => ({ ...t, assignees: assigneesByTask[t.id] || [] }));
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
       res.json({ success: true, data: await attachAssignees(result.rows) });
     } else {
       let query = `
-        SELECT t.*, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
+        SELECT t.*, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
         FROM tasks t
         JOIN task_assignments ta ON t.id = ta.task_id
         JOIN users u ON t.assigned_by = u.id
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
 
       if (status) {
         params.push(status);
-        query += ` AND t.status = $${params.length}`;
+        query += ` AND COALESCE(ta.status, t.status) = $${params.length}`;
       }
 
       query += ' ORDER BY t.created_at DESC';
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
 router.get('/my', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT t.*, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
+      SELECT t.*, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
       FROM tasks t
       JOIN task_assignments ta ON t.id = ta.task_id
       JOIN users u ON t.assigned_by = u.id
@@ -104,7 +104,7 @@ router.get('/kanban', async (req, res) => {
       tasks = result.rows;
     } else {
       const result = await db.query(`
-        SELECT t.*, u.name as assigned_by_name, ta.progress_notes
+        SELECT t.*, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes
         FROM tasks t
         JOIN task_assignments ta ON t.id = ta.task_id
         JOIN users u ON t.assigned_by = u.id
@@ -288,18 +288,21 @@ router.put('/:id/status', async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not assigned to this task.' });
     }
 
-    // Update task status
-    await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
+    if (req.user.role === 'admin' && !assignment) {
+      // Admin updates global task status if not assigned
+      await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
+    }
 
-    // Update assignment progress notes and completed_at
+    // Update assignment progress notes, completed_at, and individual status
     if (assignment) {
       const completedAt = status === 'completed' ? new Date().toISOString() : null;
       await db.query(`
         UPDATE task_assignments SET
-          progress_notes = COALESCE($1, progress_notes),
-          completed_at = COALESCE($2, completed_at)
-        WHERE task_id = $3 AND user_id = $4
-      `, [progress_notes || null, completedAt, id, req.user.id]);
+          status = $1,
+          progress_notes = COALESCE($2, progress_notes),
+          completed_at = COALESCE($3, completed_at)
+        WHERE id = $4
+      `, [status, progress_notes || null, completedAt, assignment.id]);
     }
 
     // Gamification: Add 20 points if completing for the first time

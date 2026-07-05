@@ -236,8 +236,16 @@ async function initTasks() {
                     ${task.description ? `<p style="color:var(--text-muted);font-size:0.85rem;margin:0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${task.description}</p>` : ''}
                     <div style="display:flex;align-items:center;gap:var(--space-lg);margin-top:var(--space-sm)">
                       ${task.deadline ? `<span style="font-size:0.8rem;color:${isOverdue ? 'var(--error)' : 'var(--text-muted)'}"><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>${new Date(task.deadline).toLocaleDateString()}</span>` : ''}
-                      ${task.assignees && task.assignees.length > 0 ? `<span style="font-size:0.8rem;color:var(--text-muted)"><i data-lucide="users" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>${task.assignees.map(a => a.name || a).join(', ')}</span>` : ''}
-                    </div>
+                      ${task.assignees && task.assignees.length > 0 ? `
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+                          ${task.assignees.map(a => {
+                            const ast = statusConfig[a.status] || statusConfig.assigned;
+                            return \`<span style="font-size:0.75rem;padding:2px 8px;border-radius:12px;background:\${ast.bg};color:\${ast.color};display:flex;align-items:center;gap:4px;border:1px solid \${ast.color}33" title="Status: \${ast.label}">
+                              <i data-lucide="user" style="width:10px;height:10px"></i> \${a.name || a}
+                            </span>\`;
+                          }).join('')}
+                        </div>
+                      ` : ''}
                   </div>
                   <div style="display:flex;gap:4px;flex-shrink:0">
                     ${!isAdminUser && task.status !== 'completed' ? `
@@ -299,6 +307,16 @@ async function initTasks() {
                       </div>
                       <div style="font-size:0.85rem;font-weight:500;color:var(--text-primary);margin-bottom:4px;line-height:1.4">${task.title}</div>
                       ${task.deadline ? `<div style="font-size:0.75rem;color:var(--text-muted)">${new Date(task.deadline).toLocaleDateString()}</div>` : ''}
+                      ${task.assignees && task.assignees.length > 0 ? `
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">
+                          ${task.assignees.map(a => {
+                            const ast = statusConfig[a.status] || statusConfig.assigned;
+                            return \`<div style="font-size:0.7rem;padding:2px 6px;border-radius:12px;background:\${ast.bg};color:\${ast.color};display:flex;align-items:center;gap:4px;border:1px solid \${ast.color}33" title="\${a.name} - \${ast.label}">
+                              \${a.name ? a.name.charAt(0).toUpperCase() : '?'}
+                            </div>\`;
+                          }).join('')}
+                        </div>
+                      ` : ''}
                     </div>
                   `;
                 }).join('')}
