@@ -141,6 +141,9 @@ router.put('/:id', async (req, res) => {
     }
 
     if (isAdminUser) {
+      const newStatus = status || ticket.status;
+      const shouldClearScreenshots = (newStatus === 'resolved' || newStatus === 'closed');
+
       await db.query(`
         UPDATE tickets SET
           status = COALESCE($1, status),
@@ -148,8 +151,9 @@ router.put('/:id', async (req, res) => {
           assigned_admin = COALESCE($3, assigned_admin),
           description = COALESCE($4, description),
           issue_type = COALESCE($5, issue_type),
-          resolution_notes = COALESCE($6, resolution_notes)
-        WHERE id = $7
+          resolution_notes = COALESCE($6, resolution_notes),
+          screenshots = $7
+        WHERE id = $8
       `, [
         status || null,
         priority || null,
@@ -157,6 +161,7 @@ router.put('/:id', async (req, res) => {
         description || null,
         issue_type || null,
         resolution_notes || null,
+        shouldClearScreenshots ? '[]' : ticket.screenshots,
         id,
       ]);
     } else {
@@ -201,7 +206,8 @@ router.put('/:id/resolve', authorize('admin'), async (req, res) => {
         status = 'resolved',
         resolution_notes = $1,
         assigned_admin = COALESCE(assigned_admin, $2),
-        resolved_at = CURRENT_TIMESTAMP
+        resolved_at = CURRENT_TIMESTAMP,
+        screenshots = '[]'
       WHERE id = $3
     `, [resolution_notes || null, req.user.id, id]);
 

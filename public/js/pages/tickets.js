@@ -273,6 +273,10 @@ async function initTickets() {
           const st = statusConfig[t.status] || statusConfig.open;
           const typeIcon = typeIcons[t.issue_type] || 'help-circle';
           const dateStr = new Date(t.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+          let screenshots = [];
+          try {
+            screenshots = typeof t.screenshots === 'string' ? JSON.parse(t.screenshots) : (t.screenshots || []);
+          } catch(e) {}
 
           return `
             <div class="card" style="border-left:3px solid ${st.color}">
@@ -290,6 +294,11 @@ async function initTickets() {
                       </span>
                     </div>
                     <p style="color:var(--text-secondary);font-size:0.9rem;margin:0 0 var(--space-sm);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${t.description}</p>
+                    ${screenshots && screenshots.length > 0 ? `
+                      <div style="margin-bottom:var(--space-md)">
+                        <img src="${screenshots[0]}" alt="Attachment" style="max-height:120px;border-radius:var(--border-radius-sm);border:1px solid var(--border-color);cursor:pointer;object-fit:contain" onclick="viewTicketImage('${screenshots[0]}')" />
+                      </div>
+                    ` : ''}
                     <div style="display:flex;align-items:center;gap:var(--space-lg);color:var(--text-muted);font-size:0.8rem">
                       <span><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px"></i>${dateStr}</span>
                       ${isAdminUser && t.raised_by_name ? `<span><i data-lucide="user" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px"></i>${t.raised_by_name}</span>` : ''}
@@ -498,6 +507,33 @@ async function initTickets() {
     } catch(err) {
       showToast({ message: err.message || 'Failed to delete ticket', type: 'error' });
     }
+  };
+
+  // Global function for viewing images full screen
+  window.viewTicketImage = (src) => {
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    modal.style.zIndex = '99999';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.cursor = 'pointer';
+    
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.maxWidth = '90%';
+    img.style.maxHeight = '90%';
+    img.style.borderRadius = '8px';
+    img.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+    
+    modal.appendChild(img);
+    modal.onclick = () => document.body.removeChild(modal);
+    document.body.appendChild(modal);
   };
 
   // Global function so PCs page can open the ticket modal with a pre-selected PC
