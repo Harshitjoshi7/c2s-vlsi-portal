@@ -8,7 +8,7 @@ import { isValidEmail, isNotEmpty } from '../utils/validators.js';
 const router = Router();
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -17,7 +17,8 @@ router.post('/login', (req, res) => {
     }
 
     // Attempt to fetch user by email or name (case-insensitive)
-    const user = db.prepare('SELECT * FROM users WHERE (LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?)) AND is_active = 1').get(email, email);
+    const result = await db.query('SELECT * FROM users WHERE (LOWER(email) = LOWER($1) OR LOWER(name) = LOWER($2)) AND is_active = 1', [email, email]);
+    const user = result.rows[0];
 
     if (!user) {
       return res.status(401).json({ success: false, error: 'Invalid credentials.' });
@@ -50,9 +51,10 @@ router.post('/login', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', verifyToken, (req, res) => {
+router.get('/me', verifyToken, async (req, res) => {
   try {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const result = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = result.rows[0];
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found.' });
@@ -68,7 +70,7 @@ router.get('/me', verifyToken, (req, res) => {
 });
 
 // POST /api/auth/change-password
-router.post('/change-password', verifyToken, (req, res) => {
+router.post('/change-password', verifyToken, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
 
@@ -80,7 +82,8 @@ router.post('/change-password', verifyToken, (req, res) => {
       return res.status(400).json({ success: false, error: 'New password must be at least 6 characters.' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const result = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = result.rows[0];
 
     const isMatch = bcrypt.compareSync(oldPassword, user.password_hash);
     if (!isMatch) {
@@ -90,8 +93,7 @@ router.post('/change-password', verifyToken, (req, res) => {
     const salt = bcrypt.genSaltSync(10);
     const newHash = bcrypt.hashSync(newPassword, salt);
 
-    db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(newHash, req.user.id);
+    await db.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, req.user.id]);
 
     res.json({ success: true, data: { message: 'Password changed successfully.' } });
   } catch (error) {

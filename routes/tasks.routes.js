@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db, { createNotification, withTransaction } from '../database/db.js';
+import db, { createNotification } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { authorize } from '../middleware/roleGuard.js';
 
@@ -7,28 +7,29 @@ const router = Router();
 
 router.use(verifyToken);
 
-const attachAssignees = (tasks) => {
+// Helper: attach assignees to a list of tasks
+const attachAssignees = async (tasks) => {
   if (!tasks || tasks.length === 0) return tasks;
   const taskIds = tasks.map(t => t.id);
-  const placeholders = taskIds.map(() => '?').join(',');
-  const assignments = db.prepare(`
+  const placeholders = taskIds.map((_, i) => `$${i + 1}`).join(',');
+  const assignmentsRes = await db.query(`
     SELECT ta.task_id, u.name, u.id as user_id 
     FROM task_assignments ta 
     JOIN users u ON ta.user_id = u.id 
     WHERE ta.task_id IN (${placeholders})
-  `).all(...taskIds);
-  
+  `, taskIds);
+
   const assigneesByTask = {};
-  for (const a of assignments) {
+  for (const a of assignmentsRes.rows) {
     if (!assigneesByTask[a.task_id]) assigneesByTask[a.task_id] = [];
     assigneesByTask[a.task_id].push({ id: a.user_id, name: a.name });
   }
-  
+
   return tasks.map(t => ({ ...t, assignees: assigneesByTask[t.id] || [] }));
 };
 
 // GET /api/tasks — list tasks (admin: all, student: assigned only)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status } = req.query;
 
@@ -37,33 +38,33 @@ router.get('/', (req, res) => {
       const params = [];
 
       if (status) {
-        query += ' WHERE t.status = ?';
         params.push(status);
+        query += ` WHERE t.status = $${params.length}`;
       }
 
       query += ' ORDER BY t.created_at DESC';
-      const tasks = db.prepare(query).all(...params);
+      const result = await db.query(query, params);
 
-      res.json({ success: true, data: attachAssignees(tasks) });
+      res.json({ success: true, data: await attachAssignees(result.rows) });
     } else {
       let query = `
         SELECT t.*, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
         FROM tasks t
         JOIN task_assignments ta ON t.id = ta.task_id
         JOIN users u ON t.assigned_by = u.id
-        WHERE ta.user_id = ?
+        WHERE ta.user_id = $1
       `;
       const params = [req.user.id];
 
       if (status) {
-        query += ' AND t.status = ?';
         params.push(status);
+        query += ` AND t.status = $${params.length}`;
       }
 
       query += ' ORDER BY t.created_at DESC';
-      const tasks = db.prepare(query).all(...params);
+      const result = await db.query(query, params);
 
-      res.json({ success: true, data: attachAssignees(tasks) });
+      res.json({ success: true, data: await attachAssignees(result.rows) });
     }
   } catch (error) {
     console.error('List tasks error:', error);
@@ -72,17 +73,18 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/tasks/my — student's assigned tasks
-router.get('/my', (req, res) => {
+router.get('/my', async (req, res) => {
   try {
-    const tasks = db.prepare(`
+    const result = await db.query(`
       SELECT t.*, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
       FROM tasks t
       JOIN task_assignments ta ON t.id = ta.task_id
       JOIN users u ON t.assigned_by = u.id
-      WHERE ta.user_id = ?
+      WHERE ta.user_id = $1
       ORDER BY t.created_at DESC
-    `).all(req.user.id);
-    res.json({ success: true, data: attachAssignees(tasks) });
+    `, [req.user.id]);
+
+    res.json({ success: true, data: await attachAssignees(result.rows) });
   } catch (error) {
     console.error('My tasks error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -90,29 +92,30 @@ router.get('/my', (req, res) => {
 });
 
 // GET /api/tasks/kanban — tasks in kanban column format
-router.get('/kanban', (req, res) => {
+router.get('/kanban', async (req, res) => {
   try {
     let tasks;
     if (req.user.role === 'admin') {
-      tasks = db.prepare(`
+      const result = await db.query(`
         SELECT t.*, u.name as assigned_by_name
         FROM tasks t JOIN users u ON t.assigned_by = u.id
         ORDER BY t.created_at DESC
-      `).all();
+      `);
+      tasks = result.rows;
     } else {
-      tasks = db.prepare(`
+      const result = await db.query(`
         SELECT t.*, u.name as assigned_by_name, ta.progress_notes
         FROM tasks t
         JOIN task_assignments ta ON t.id = ta.task_id
         JOIN users u ON t.assigned_by = u.id
-        WHERE ta.user_id = ?
+        WHERE ta.user_id = $1
         ORDER BY t.created_at DESC
-      `).all(req.user.id);
+      `, [req.user.id]);
+      tasks = result.rows;
     }
 
-    const tasksWithAssignees = attachAssignees(tasks);
+    const tasksWithAssignees = await attachAssignees(tasks);
 
-    // Group by status columns
     const kanban = {
       assigned: tasksWithAssignees.filter(t => t.status === 'assigned'),
       in_progress: tasksWithAssignees.filter(t => t.status === 'in_progress'),
@@ -128,28 +131,29 @@ router.get('/kanban', (req, res) => {
 });
 
 // GET /api/tasks/:id — get task with assignments
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const task = db.prepare(`
+    const taskRes = await db.query(`
       SELECT t.*, u.name as assigned_by_name
       FROM tasks t
       JOIN users u ON t.assigned_by = u.id
-      WHERE t.id = ?
-    `).get(id);
+      WHERE t.id = $1
+    `, [id]);
+    const task = taskRes.rows[0];
 
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found.' });
     }
 
-    const assignments = db.prepare(`
+    const assignmentsRes = await db.query(`
       SELECT ta.*, u.name as user_name, u.email as user_email
       FROM task_assignments ta
       JOIN users u ON ta.user_id = u.id
-      WHERE ta.task_id = ?
-    `).all(id);
+      WHERE ta.task_id = $1
+    `, [id]);
 
-    res.json({ success: true, data: { ...task, assignments } });
+    res.json({ success: true, data: { ...task, assignments: assignmentsRes.rows } });
   } catch (error) {
     console.error('Get task error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -157,7 +161,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/tasks — create task and assign to students (admin only)
-router.post('/', authorize('admin'), (req, res) => {
+router.post('/', authorize('admin'), async (req, res) => {
   try {
     const { title, description, priority, category, deadline, attachments, assigned_to } = req.body;
 
@@ -165,52 +169,45 @@ router.post('/', authorize('admin'), (req, res) => {
       return res.status(400).json({ success: false, error: 'Task title is required.' });
     }
 
-    const result = db.prepare(`
+    const insertRes = await db.query(`
       INSERT INTO tasks (title, description, assigned_by, priority, category, deadline, attachments)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `, [
       title,
       description || null,
       req.user.id,
       priority || 'medium',
       category || null,
       deadline || null,
-      attachments ? JSON.stringify(attachments) : '[]'
-    );
+      attachments ? JSON.stringify(attachments) : '[]',
+    ]);
 
-    const taskId = result.lastInsertRowid;
+    const taskId = insertRes.rows[0].id;
 
-    // Assign to students
+    // Assign to students and notify
     if (assigned_to && Array.isArray(assigned_to) && assigned_to.length > 0) {
-      const insertAssignment = db.prepare(
-        'INSERT INTO task_assignments (task_id, user_id) VALUES (?, ?)'
-      );
-
-      const doAssign = withTransaction((studentIds) => {
-        for (const studentId of studentIds) {
-          insertAssignment.run(taskId, studentId);
-          createNotification(
-            studentId,
-            'task',
-            'New Task Assigned',
-            `You have been assigned a new task: ${title}`,
-            `/tasks/${taskId}`
-          );
-        }
-      });
-
-      doAssign(assigned_to);
+      for (const studentId of assigned_to) {
+        await db.query('INSERT INTO task_assignments (task_id, user_id) VALUES ($1, $2)', [taskId, studentId]);
+        await createNotification(
+          studentId,
+          'task',
+          'New Task Assigned',
+          `You have been assigned a new task: ${title}`,
+          `/tasks/${taskId}`
+        );
+      }
     }
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-    const assignments = db.prepare(`
+    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    const assignmentsRes = await db.query(`
       SELECT ta.*, u.name as user_name
       FROM task_assignments ta
       JOIN users u ON ta.user_id = u.id
-      WHERE ta.task_id = ?
-    `).all(taskId);
+      WHERE ta.task_id = $1
+    `, [taskId]);
 
-    res.status(201).json({ success: true, data: { ...task, assignments } });
+    res.status(201).json({ success: true, data: { ...taskRes.rows[0], assignments: assignmentsRes.rows } });
   } catch (error) {
     console.error('Create task error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -218,28 +215,28 @@ router.post('/', authorize('admin'), (req, res) => {
 });
 
 // PUT /api/tasks/:id — update task details (admin only)
-router.put('/:id', authorize('admin'), (req, res) => {
+router.put('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, priority, status, category, deadline, attachments } = req.body;
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
-    if (!task) {
+    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    if (!taskRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'Task not found.' });
     }
 
-    db.prepare(`
+    await db.query(`
       UPDATE tasks SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        priority = COALESCE(?, priority),
-        status = COALESCE(?, status),
-        category = COALESCE(?, category),
-        deadline = COALESCE(?, deadline),
-        attachments = COALESCE(?, attachments),
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        priority = COALESCE($3, priority),
+        status = COALESCE($4, status),
+        category = COALESCE($5, category),
+        deadline = COALESCE($6, deadline),
+        attachments = COALESCE($7, attachments),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
+      WHERE id = $8
+    `, [
       title || null,
       description || null,
       priority || null,
@@ -247,12 +244,12 @@ router.put('/:id', authorize('admin'), (req, res) => {
       category || null,
       deadline || null,
       attachments ? JSON.stringify(attachments) : null,
-      id
-    );
+      id,
+    ]);
 
-    const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+    const updatedRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update task error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -260,7 +257,7 @@ router.put('/:id', authorize('admin'), (req, res) => {
 });
 
 // PUT /api/tasks/:id/status — update task status (assigned student)
-router.put('/:id/status', (req, res) => {
+router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, progress_notes } = req.body;
@@ -274,43 +271,45 @@ router.put('/:id/status', (req, res) => {
       return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    const task = taskRes.rows[0];
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found.' });
     }
 
     // Verify the student is assigned to this task
-    const assignment = db.prepare(
-      'SELECT * FROM task_assignments WHERE task_id = ? AND user_id = ?'
-    ).get(id, req.user.id);
+    const assignmentRes = await db.query(
+      'SELECT * FROM task_assignments WHERE task_id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    const assignment = assignmentRes.rows[0];
 
     if (!assignment && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, error: 'You are not assigned to this task.' });
     }
 
     // Update task status
-    db.prepare('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(status, id);
+    await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
 
     // Update assignment progress notes and completed_at
     if (assignment) {
       const completedAt = status === 'completed' ? new Date().toISOString() : null;
-      db.prepare(`
+      await db.query(`
         UPDATE task_assignments SET
-          progress_notes = COALESCE(?, progress_notes),
-          completed_at = COALESCE(?, completed_at)
-        WHERE task_id = ? AND user_id = ?
-      `).run(progress_notes || null, completedAt, id, req.user.id);
+          progress_notes = COALESCE($1, progress_notes),
+          completed_at = COALESCE($2, completed_at)
+        WHERE task_id = $3 AND user_id = $4
+      `, [progress_notes || null, completedAt, id, req.user.id]);
     }
 
     // Gamification: Add 20 points if completing for the first time
     if (status === 'completed' && task.status !== 'completed' && assignment) {
-      db.prepare('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = ?').run(req.user.id);
+      await db.query('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = $1', [req.user.id]);
     }
 
-    const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+    const updatedRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update task status error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -318,16 +317,16 @@ router.put('/:id/status', (req, res) => {
 });
 
 // DELETE /api/tasks/:id — delete task (admin only)
-router.delete('/:id', authorize('admin'), (req, res) => {
+router.delete('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
-    if (!task) {
+    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    if (!taskRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'Task not found.' });
     }
 
-    db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+    await db.query('DELETE FROM tasks WHERE id = $1', [id]);
 
     res.json({ success: true, data: { message: 'Task deleted successfully.' } });
   } catch (error) {

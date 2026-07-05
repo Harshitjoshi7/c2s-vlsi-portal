@@ -8,87 +8,50 @@ const router = Router();
 router.use(verifyToken);
 
 // POST /api/attendance/check-in — student checks in
-router.post('/check-in', (req, res) => {
+router.post('/check-in', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
 
     // Check if already checked in today
-    const existing = db.prepare(
-      'SELECT * FROM attendance WHERE user_id = ? AND attendance_date = ?'
-    ).get(req.user.id, today);
+    const existingRes = await db.query(
+      'SELECT * FROM attendance WHERE user_id = $1 AND attendance_date = $2',
+      [req.user.id, today]
+    );
 
-    if (existing) {
+    if (existingRes.rows[0]) {
       return res.status(409).json({ success: false, error: 'Already checked in for today.' });
     }
 
-    const result = db.prepare(`
+    const insertRes = await db.query(`
       INSERT INTO attendance (user_id, attendance_date, status, check_in_time)
-      VALUES (?, ?, 'present', ?)
-    `).run(req.user.id, today, now);
+      VALUES ($1, $2, 'present', $3)
+      RETURNING id
+    `, [req.user.id, today, now]);
 
-    const record = db.prepare('SELECT * FROM attendance WHERE id = ?').get(result.lastInsertRowid);
+    const recordRes = await db.query('SELECT * FROM attendance WHERE id = $1', [insertRes.rows[0].id]);
 
     // Gamification: Add 5 points for checking in
-    db.prepare('UPDATE users SET points = COALESCE(points, 0) + 5 WHERE id = ?').run(req.user.id);
+    await db.query('UPDATE users SET points = COALESCE(points, 0) + 5 WHERE id = $1', [req.user.id]);
 
-    res.status(201).json({ success: true, data: record });
+    res.status(201).json({ success: true, data: recordRes.rows[0] });
   } catch (error) {
     console.error('Check-in error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
 
-// POST /api/attendance — generic check-in or bulk mark (admin or student for themselves)
-router.post('/', (req, res) => {
-  try {
-    const { user_id, attendance_date, status, check_in_time, check_out_time } = req.body;
-    
-    // Default to current user if user_id not provided
-    const uid = user_id || req.user.id;
-
-    // If not admin, can only post for themselves
-    if (req.user.role !== 'admin' && String(uid) !== String(req.user.id)) {
-      return res.status(403).json({ success: false, error: 'You can only record your own attendance.' });
-    }
-    const date = attendance_date || new Date().toISOString().split('T')[0];
-
-    const existing = db.prepare(
-      'SELECT * FROM attendance WHERE user_id = ? AND attendance_date = ?'
-    ).get(uid, date);
-
-    if (existing) {
-      return res.status(409).json({ success: false, error: 'Attendance already recorded for this date.' });
-    }
-
-    const result = db.prepare(`
-      INSERT INTO attendance (user_id, attendance_date, status, check_in_time, check_out_time)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(
-      uid, 
-      date, 
-      status || 'present', 
-      check_in_time || new Date().toISOString(), 
-      check_out_time || null
-    );
-
-    const record = db.prepare('SELECT * FROM attendance WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json({ success: true, data: record });
-  } catch (error) {
-    console.error('Create attendance error:', error);
-    res.status(500).json({ success: false, error: 'Internal server error.' });
-  }
-});
-
 // POST /api/attendance/check-out — student checks out
-router.post('/check-out', (req, res) => {
+router.post('/check-out', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
 
-    const existing = db.prepare(
-      'SELECT * FROM attendance WHERE user_id = ? AND attendance_date = ?'
-    ).get(req.user.id, today);
+    const existingRes = await db.query(
+      'SELECT * FROM attendance WHERE user_id = $1 AND attendance_date = $2',
+      [req.user.id, today]
+    );
+    const existing = existingRes.rows[0];
 
     if (!existing) {
       return res.status(404).json({ success: false, error: 'No check-in record found for today. Please check in first.' });
@@ -98,43 +61,87 @@ router.post('/check-out', (req, res) => {
       return res.status(409).json({ success: false, error: 'Already checked out for today.' });
     }
 
-    db.prepare('UPDATE attendance SET check_out_time = ? WHERE id = ?').run(now, existing.id);
+    await db.query('UPDATE attendance SET check_out_time = $1 WHERE id = $2', [now, existing.id]);
 
-    const updated = db.prepare('SELECT * FROM attendance WHERE id = ?').get(existing.id);
+    const updatedRes = await db.query('SELECT * FROM attendance WHERE id = $1', [existing.id]);
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Check-out error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
 
+// POST /api/attendance — generic create (admin or student for themselves)
+router.post('/', async (req, res) => {
+  try {
+    const { user_id, attendance_date, status, check_in_time, check_out_time } = req.body;
+
+    const uid = user_id || req.user.id;
+
+    if (req.user.role !== 'admin' && String(uid) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'You can only record your own attendance.' });
+    }
+
+    const date = attendance_date || new Date().toISOString().split('T')[0];
+
+    const existingRes = await db.query(
+      'SELECT * FROM attendance WHERE user_id = $1 AND attendance_date = $2',
+      [uid, date]
+    );
+
+    if (existingRes.rows[0]) {
+      return res.status(409).json({ success: false, error: 'Attendance already recorded for this date.' });
+    }
+
+    const insertRes = await db.query(`
+      INSERT INTO attendance (user_id, attendance_date, status, check_in_time, check_out_time)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `, [
+      uid,
+      date,
+      status || 'present',
+      check_in_time || new Date().toISOString(),
+      check_out_time || null,
+    ]);
+
+    const recordRes = await db.query('SELECT * FROM attendance WHERE id = $1', [insertRes.rows[0].id]);
+
+    res.status(201).json({ success: true, data: recordRes.rows[0] });
+  } catch (error) {
+    console.error('Create attendance error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
 // PUT /api/attendance/:id — update attendance record (admin only)
-router.put('/:id', authorize('admin'), (req, res) => {
+router.put('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, check_in_time, check_out_time } = req.body;
 
-    const existing = db.prepare('SELECT * FROM attendance WHERE id = ?').get(id);
-    if (!existing) {
+    const existingRes = await db.query('SELECT * FROM attendance WHERE id = $1', [id]);
+    if (!existingRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'Attendance record not found.' });
     }
 
-    db.prepare(`
+    await db.query(`
       UPDATE attendance SET
-        status = COALESCE(?, status),
-        check_in_time = COALESCE(?, check_in_time),
-        check_out_time = COALESCE(?, check_out_time)
-      WHERE id = ?
-    `).run(
+        status = COALESCE($1, status),
+        check_in_time = COALESCE($2, check_in_time),
+        check_out_time = COALESCE($3, check_out_time)
+      WHERE id = $4
+    `, [
       status || null,
       check_in_time !== undefined ? check_in_time : null,
       check_out_time !== undefined ? check_out_time : null,
-      id
-    );
+      id,
+    ]);
 
-    const updated = db.prepare('SELECT * FROM attendance WHERE id = ?').get(id);
-    res.json({ success: true, data: updated });
+    const updatedRes = await db.query('SELECT * FROM attendance WHERE id = $1', [id]);
+
+    res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update attendance error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -142,22 +149,23 @@ router.put('/:id', authorize('admin'), (req, res) => {
 });
 
 // GET /api/attendance/today — today's attendance for all students (admin)
-router.get('/today', authorize('admin'), (req, res) => {
+router.get('/today', authorize('admin'), async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 
-    const attendance = db.prepare(`
+    const attendanceRes = await db.query(`
       SELECT a.*, u.name as user_name, u.email as user_email, u.enrollment_id
       FROM attendance a
       JOIN users u ON a.user_id = u.id
-      WHERE a.attendance_date = ?
+      WHERE a.attendance_date = $1
       ORDER BY a.check_in_time ASC
-    `).all(today);
+    `, [today]);
+    const attendance = attendanceRes.rows;
 
-    // Also get students who haven't checked in
-    const allStudents = db.prepare(
+    const allStudentsRes = await db.query(
       "SELECT id, name, email, enrollment_id FROM users WHERE role = 'student' AND is_active = 1"
-    ).all();
+    );
+    const allStudents = allStudentsRes.rows;
 
     const checkedInIds = new Set(attendance.map((a) => a.user_id));
     const absent = allStudents.filter((s) => !checkedInIds.has(s.id));
@@ -182,22 +190,25 @@ router.get('/today', authorize('admin'), (req, res) => {
 });
 
 // GET /api/attendance — all records for admin, own for student
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const isAdminUser = req.user.role === 'admin';
-    let records;
+    let result;
+
     if (isAdminUser) {
-      records = db.prepare(`
+      result = await db.query(`
         SELECT a.*, u.name as user_name FROM attendance a
         JOIN users u ON a.user_id = u.id
         ORDER BY a.attendance_date DESC
-      `).all();
+      `);
     } else {
-      records = db.prepare(`
-        SELECT * FROM attendance WHERE user_id = ? ORDER BY attendance_date DESC
-      `).all(req.user.id);
+      result = await db.query(
+        'SELECT * FROM attendance WHERE user_id = $1 ORDER BY attendance_date DESC',
+        [req.user.id]
+      );
     }
-    res.json({ success: true, data: records });
+
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('List attendance error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -205,15 +216,14 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/attendance/my — current student's attendance history
-router.get('/my', (req, res) => {
+router.get('/my', async (req, res) => {
   try {
-    const records = db.prepare(`
-      SELECT * FROM attendance
-      WHERE user_id = ?
-      ORDER BY attendance_date DESC
-    `).all(req.user.id);
+    const result = await db.query(
+      'SELECT * FROM attendance WHERE user_id = $1 ORDER BY attendance_date DESC',
+      [req.user.id]
+    );
 
-    res.json({ success: true, data: records });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('My attendance error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -221,42 +231,55 @@ router.get('/my', (req, res) => {
 });
 
 // GET /api/attendance/report — monthly report (admin)
-router.get('/report', authorize('admin'), (req, res) => {
+router.get('/report', authorize('admin'), async (req, res) => {
   try {
     const now = new Date();
     const month = req.query.month || String(now.getMonth() + 1).padStart(2, '0');
     const year = req.query.year || String(now.getFullYear());
     const paddedMonth = String(month).padStart(2, '0');
 
-    const students = db.prepare(
+    const studentsRes = await db.query(
       "SELECT id, name, email, enrollment_id FROM users WHERE role = 'student' AND is_active = 1"
-    ).all();
+    );
+    const students = studentsRes.rows;
 
-    const report = students.map((student) => {
-      const totalRecords = db.prepare(`
+    const report = await Promise.all(students.map(async (student) => {
+      const totalRecordsRes = await db.query(`
         SELECT COUNT(*) as count FROM attendance
-        WHERE user_id = ? AND strftime('%m', attendance_date) = ? AND strftime('%Y', attendance_date) = ?
-      `).get(student.id, paddedMonth, year).count;
+        WHERE user_id = $1
+          AND TO_CHAR(attendance_date, 'MM') = $2
+          AND TO_CHAR(attendance_date, 'YYYY') = $3
+      `, [student.id, paddedMonth, year]);
 
-      const presentDays = db.prepare(`
+      const presentDaysRes = await db.query(`
         SELECT COUNT(*) as count FROM attendance
-        WHERE user_id = ? AND strftime('%m', attendance_date) = ? AND strftime('%Y', attendance_date) = ?
-        AND status IN ('present', 'late')
-      `).get(student.id, paddedMonth, year).count;
+        WHERE user_id = $1
+          AND TO_CHAR(attendance_date, 'MM') = $2
+          AND TO_CHAR(attendance_date, 'YYYY') = $3
+          AND status IN ('present', 'late')
+      `, [student.id, paddedMonth, year]);
 
-      const lateDays = db.prepare(`
+      const lateDaysRes = await db.query(`
         SELECT COUNT(*) as count FROM attendance
-        WHERE user_id = ? AND strftime('%m', attendance_date) = ? AND strftime('%Y', attendance_date) = ?
-        AND status = 'late'
-      `).get(student.id, paddedMonth, year).count;
+        WHERE user_id = $1
+          AND TO_CHAR(attendance_date, 'MM') = $2
+          AND TO_CHAR(attendance_date, 'YYYY') = $3
+          AND status = 'late'
+      `, [student.id, paddedMonth, year]);
 
-      const leaveDays = db.prepare(`
+      const leaveDaysRes = await db.query(`
         SELECT COUNT(*) as count FROM attendance
-        WHERE user_id = ? AND strftime('%m', attendance_date) = ? AND strftime('%Y', attendance_date) = ?
-        AND status = 'on_leave'
-      `).get(student.id, paddedMonth, year).count;
+        WHERE user_id = $1
+          AND TO_CHAR(attendance_date, 'MM') = $2
+          AND TO_CHAR(attendance_date, 'YYYY') = $3
+          AND status = 'on_leave'
+      `, [student.id, paddedMonth, year]);
 
-      // Calculate working days in the month (approximate: use totalRecords or calendar days)
+      const totalRecords = parseInt(totalRecordsRes.rows[0].count, 10);
+      const presentDays = parseInt(presentDaysRes.rows[0].count, 10);
+      const lateDays = parseInt(lateDaysRes.rows[0].count, 10);
+      const leaveDays = parseInt(leaveDaysRes.rows[0].count, 10);
+
       const daysInMonth = new Date(parseInt(year), parseInt(paddedMonth), 0).getDate();
       const percentage = daysInMonth > 0 ? Math.round((presentDays / daysInMonth) * 100) : 0;
 
@@ -271,7 +294,7 @@ router.get('/report', authorize('admin'), (req, res) => {
         leave_days: leaveDays,
         attendance_percentage: percentage,
       };
-    });
+    }));
 
     res.json({
       success: true,
@@ -286,32 +309,40 @@ router.get('/report', authorize('admin'), (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
+
 // DELETE /api/attendance/:id — unmark attendance
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const record = db.prepare('SELECT * FROM attendance WHERE id = ?').get(id);
+    const recordRes = await db.query('SELECT * FROM attendance WHERE id = $1', [id]);
+    const record = recordRes.rows[0];
     if (!record) {
       return res.status(404).json({ success: false, error: 'Attendance record not found.' });
     }
 
-    // Only admins or the student who owns the record can delete it
     if (req.user.role !== 'admin' && String(record.user_id) !== String(req.user.id)) {
       return res.status(403).json({ success: false, error: 'Unauthorized to delete this record.' });
     }
-    
+
     // Only allow unmarking today's attendance if they are a student
     const today = new Date().toISOString().split('T')[0];
-    if (req.user.role !== 'admin' && record.attendance_date !== today) {
+    const recordDate = record.attendance_date instanceof Date
+      ? record.attendance_date.toISOString().split('T')[0]
+      : String(record.attendance_date).split('T')[0];
+
+    if (req.user.role !== 'admin' && recordDate !== today) {
       return res.status(403).json({ success: false, error: 'You can only unmark your attendance for today.' });
     }
 
-    db.prepare('DELETE FROM attendance WHERE id = ?').run(id);
+    await db.query('DELETE FROM attendance WHERE id = $1', [id]);
 
     // Deduct the 5 points if they were present
     if (record.status === 'present') {
-      db.prepare('UPDATE users SET points = MAX(0, COALESCE(points, 0) - 5) WHERE id = ?').run(record.user_id);
+      await db.query(
+        'UPDATE users SET points = GREATEST(0, COALESCE(points, 0) - 5) WHERE id = $1',
+        [record.user_id]
+      );
     }
 
     res.json({ success: true, data: { message: 'Attendance unmarked successfully.' } });

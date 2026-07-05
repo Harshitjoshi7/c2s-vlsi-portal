@@ -76,20 +76,23 @@ app.get('*', (req, res) => {
   });
 });
 
-// Initialize database and start server
-async function start() {
-  try {
-    initializeDatabase();
-    await seedDatabase();
-    console.log('Database ready.');
-
-    app.listen(PORT, () => {
-      console.log(`C2S VLSI Portal server running on http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+// Initialize database and start server (if not in serverless environment)
+if (process.env.NODE_ENV !== 'production') {
+  async function start() {
+    try {
+      await initializeDatabase();
+      await seedDatabase();
+      console.log('Database ready.');
+      app.listen(PORT, () => {
+        console.log(`C2S VLSI Portal server running on http://localhost:${PORT}`);
+      });
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
   }
+  start();
 }
 
-start();
+// Export for Vercel
+export default app;

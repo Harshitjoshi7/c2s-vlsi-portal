@@ -8,7 +8,7 @@ const router = Router();
 router.use(verifyToken);
 
 // GET /api/leave-requests — list leave requests (admin: all, student: own)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     let query;
     const params = [];
@@ -23,19 +23,19 @@ router.get('/', (req, res) => {
         ORDER BY lr.created_at DESC
       `;
     } else {
+      params.push(req.user.id);
       query = `
         SELECT lr.*, a.name as approved_by_name
         FROM leave_requests lr
         LEFT JOIN users a ON lr.approved_by = a.id
-        WHERE lr.user_id = ?
+        WHERE lr.user_id = $${params.length}
         ORDER BY lr.created_at DESC
       `;
-      params.push(req.user.id);
     }
 
-    const requests = db.prepare(query).all(...params);
+    const result = await db.query(query, params);
 
-    res.json({ success: true, data: requests });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('List leave requests error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -43,7 +43,7 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/leave-requests — submit leave request (student)
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { start_date, end_date, reason } = req.body;
 
@@ -55,14 +55,15 @@ router.post('/', (req, res) => {
       return res.status(400).json({ success: false, error: 'Start date must be before or equal to end date.' });
     }
 
-    const result = db.prepare(`
+    const insertRes = await db.query(`
       INSERT INTO leave_requests (user_id, start_date, end_date, reason)
-      VALUES (?, ?, ?, ?)
-    `).run(req.user.id, start_date, end_date, reason || null);
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `, [req.user.id, start_date, end_date, reason || null]);
 
-    const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(result.lastInsertRowid);
+    const requestRes = await db.query('SELECT * FROM leave_requests WHERE id = $1', [insertRes.rows[0].id]);
 
-    res.status(201).json({ success: true, data: request });
+    res.status(201).json({ success: true, data: requestRes.rows[0] });
   } catch (error) {
     console.error('Create leave request error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -70,7 +71,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/leave-requests/:id — approve/reject (admin only)
-router.put('/:id', authorize('admin'), (req, res) => {
+router.put('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -79,7 +80,8 @@ router.put('/:id', authorize('admin'), (req, res) => {
       return res.status(400).json({ success: false, error: 'Status must be "approved" or "rejected".' });
     }
 
-    const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(id);
+    const requestRes = await db.query('SELECT * FROM leave_requests WHERE id = $1', [id]);
+    const request = requestRes.rows[0];
     if (!request) {
       return res.status(404).json({ success: false, error: 'Leave request not found.' });
     }
@@ -88,28 +90,29 @@ router.put('/:id', authorize('admin'), (req, res) => {
       return res.status(400).json({ success: false, error: 'Leave request has already been processed.' });
     }
 
-    db.prepare(`
-      UPDATE leave_requests SET status = ?, approved_by = ? WHERE id = ?
-    `).run(status, req.user.id, id);
+    await db.query(
+      'UPDATE leave_requests SET status = $1, approved_by = $2 WHERE id = $3',
+      [status, req.user.id, id]
+    );
 
     // Notify the student
-    createNotification(
+    await createNotification(
       request.user_id,
       'leave',
       `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
       `Your leave request from ${request.start_date} to ${request.end_date} has been ${status}.`,
-      `/leave-requests`
+      '/leave-requests'
     );
 
-    const updated = db.prepare(`
+    const updatedRes = await db.query(`
       SELECT lr.*, u.name as user_name, a.name as approved_by_name
       FROM leave_requests lr
       JOIN users u ON lr.user_id = u.id
       LEFT JOIN users a ON lr.approved_by = a.id
-      WHERE lr.id = ?
-    `).get(id);
+      WHERE lr.id = $1
+    `, [id]);
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update leave request error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });

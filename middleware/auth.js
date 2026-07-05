@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import db from '../database/db.js';
 
-export function verifyToken(req, res, next) {
+export async function verifyToken(req, res, next) {
   try {
     let token = null;
 
@@ -19,7 +19,8 @@ export function verifyToken(req, res, next) {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = db.prepare('SELECT id, name, email, role, is_active FROM users WHERE id = ?').get(decoded.id);
+    const userRes = await db.query('SELECT id, name, email, role, is_active FROM users WHERE id = $1', [decoded.id]);
+    const user = userRes.rows[0];
 
     if (!user || !user.is_active) {
       return res.status(401).json({ success: false, error: 'Invalid token or user deactivated.' });

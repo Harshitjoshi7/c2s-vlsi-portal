@@ -8,16 +8,16 @@ const router = Router();
 router.use(verifyToken);
 
 // GET /api/announcements — list all, pinned first
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const announcements = db.prepare(`
+    const result = await db.query(`
       SELECT a.*, u.name as created_by_name
       FROM announcements a
       JOIN users u ON a.created_by = u.id
       ORDER BY a.is_pinned DESC, a.created_at DESC
-    `).all();
+    `);
 
-    res.json({ success: true, data: announcements });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('List announcements error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -25,7 +25,7 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/announcements — create announcement (admin)
-router.post('/', authorize('admin'), (req, res) => {
+router.post('/', authorize('admin'), async (req, res) => {
   try {
     const { title, content, is_pinned } = req.body;
 
@@ -33,36 +33,31 @@ router.post('/', authorize('admin'), (req, res) => {
       return res.status(400).json({ success: false, error: 'Title and content are required.' });
     }
 
-    const result = db.prepare(`
+    const insertRes = await db.query(`
       INSERT INTO announcements (created_by, title, content, is_pinned)
-      VALUES (?, ?, ?, ?)
-    `).run(req.user.id, title, content, is_pinned ? 1 : 0);
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `, [req.user.id, title, content, is_pinned ? 1 : 0]);
 
-    const announcementId = result.lastInsertRowid;
+    const announcementId = insertRes.rows[0].id;
 
-    // Notify all students
-    const students = db.prepare(
+    // Notify all active students
+    const studentsRes = await db.query(
       "SELECT id FROM users WHERE role = 'student' AND is_active = 1"
-    ).all();
+    );
 
-    for (const student of students) {
-      createNotification(
-        student.id,
-        'announcement',
-        'New Announcement',
-        title,
-        `/announcements`
-      );
+    for (const student of studentsRes.rows) {
+      await createNotification(student.id, 'announcement', 'New Announcement', title, '/announcements');
     }
 
-    const announcement = db.prepare(`
+    const announcementRes = await db.query(`
       SELECT a.*, u.name as created_by_name
       FROM announcements a
       JOIN users u ON a.created_by = u.id
-      WHERE a.id = ?
-    `).get(announcementId);
+      WHERE a.id = $1
+    `, [announcementId]);
 
-    res.status(201).json({ success: true, data: announcement });
+    res.status(201).json({ success: true, data: announcementRes.rows[0] });
   } catch (error) {
     console.error('Create announcement error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -70,37 +65,37 @@ router.post('/', authorize('admin'), (req, res) => {
 });
 
 // PUT /api/announcements/:id — update/pin/unpin (admin)
-router.put('/:id', authorize('admin'), (req, res) => {
+router.put('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content, is_pinned } = req.body;
 
-    const announcement = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
-    if (!announcement) {
+    const existingRes = await db.query('SELECT * FROM announcements WHERE id = $1', [id]);
+    if (!existingRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'Announcement not found.' });
     }
 
-    db.prepare(`
+    await db.query(`
       UPDATE announcements SET
-        title = COALESCE(?, title),
-        content = COALESCE(?, content),
-        is_pinned = COALESCE(?, is_pinned)
-      WHERE id = ?
-    `).run(
+        title = COALESCE($1, title),
+        content = COALESCE($2, content),
+        is_pinned = COALESCE($3, is_pinned)
+      WHERE id = $4
+    `, [
       title || null,
       content || null,
       is_pinned !== undefined ? (is_pinned ? 1 : 0) : null,
-      id
-    );
+      id,
+    ]);
 
-    const updated = db.prepare(`
+    const updatedRes = await db.query(`
       SELECT a.*, u.name as created_by_name
       FROM announcements a
       JOIN users u ON a.created_by = u.id
-      WHERE a.id = ?
-    `).get(id);
+      WHERE a.id = $1
+    `, [id]);
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update announcement error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -108,16 +103,16 @@ router.put('/:id', authorize('admin'), (req, res) => {
 });
 
 // DELETE /api/announcements/:id — delete (admin)
-router.delete('/:id', authorize('admin'), (req, res) => {
+router.delete('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const announcement = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
-    if (!announcement) {
+    const existingRes = await db.query('SELECT * FROM announcements WHERE id = $1', [id]);
+    if (!existingRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'Announcement not found.' });
     }
 
-    db.prepare('DELETE FROM announcements WHERE id = ?').run(id);
+    await db.query('DELETE FROM announcements WHERE id = $1', [id]);
 
     res.json({ success: true, data: { message: 'Announcement deleted successfully.' } });
   } catch (error) {
