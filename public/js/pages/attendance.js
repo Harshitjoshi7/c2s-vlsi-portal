@@ -302,50 +302,41 @@ async function initAttendance() {
       on_leave: { color:'var(--info)',    bg:'rgba(64,196,255,0.1)', icon:'plane'        },
     };
 
+    // Card-based layout (works on all screen sizes, especially mobile)
     container.innerHTML = `
-      <div class="table-container" style="border:none">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              ${isAdminUser ? '<th>Student</th>' : ''}
-              <th>Status</th>
-              <th>Check In</th>
-              <th>Check Out</th>
-              ${isAdminUser ? '<th>Action</th>' : ''}
-            </tr>
-          </thead>
-          <tbody>
-            ${records.map(rec => {
-              const s = statusColors[rec.status] || statusColors.absent;
-              const dateStr = new Date(rec.attendance_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-              return `
-                <tr>
-                  <td class="cell-primary">${dateStr}</td>
-                  ${isAdminUser ? `<td style="color:var(--text-secondary)">${rec.user_name || '—'}</td>` : ''}
-                  <td>
-                    <span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${s.bg};color:${s.color}">
-                      <i data-lucide="${s.icon}" style="width:12px;height:12px"></i>
-                      ${rec.status.replace('_',' ')}
-                    </span>
-                  </td>
-                  <td style="color:var(--text-muted);font-size:0.85rem">
-                    ${rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}
-                  </td>
-                  <td style="color:var(--text-muted);font-size:0.85rem">
-                    ${rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}
-                  </td>
-                  ${isAdminUser ? `
-                  <td>
-                    <button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="unmarkAttendanceRecord(${rec.id})" title="Unmark Attendance">
-                      <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-                    </button>
-                  </td>` : ''}
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
+      <div style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md)">
+        ${records.map(rec => {
+          const s = statusColors[rec.status] || statusColors.absent;
+          const dateStr = new Date(rec.attendance_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+          const checkIn = rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+          const checkOut = rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+          const initials = rec.user_name ? rec.user_name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '??';
+          return `
+          <div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md);background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--border-radius-sm)">
+            ${isAdminUser ? `
+            <div class="avatar avatar-sm" style="flex-shrink:0">${initials}</div>
+            ` : ''}
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:4px">
+                ${isAdminUser ? `<span style="font-weight:600;font-size:0.875rem;color:var(--text-primary)">${rec.user_name || '—'}</span>
+                <span style="color:var(--text-muted);font-size:0.75rem">•</span>` : ''}
+                <span style="font-size:0.8125rem;color:var(--text-secondary)">${dateStr}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--space-md);flex-wrap:wrap">
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.7rem;font-weight:600;background:${s.bg};color:${s.color}">
+                  <i data-lucide="${s.icon}" style="width:11px;height:11px"></i>
+                  ${rec.status.replace('_',' ')}
+                </span>
+                <span style="font-size:0.75rem;color:var(--text-muted)">In: ${checkIn}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted)">Out: ${checkOut}</span>
+              </div>
+            </div>
+            ${isAdminUser ? `
+            <button class="btn btn-ghost btn-sm" style="color:var(--error);flex-shrink:0" onclick="unmarkAttendanceRecord(${rec.id})" title="Unmark Attendance">
+              <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+            </button>` : ''}
+          </div>`;
+        }).join('')}
       </div>
     `;
     if (window.lucide) lucide.createIcons();
