@@ -32,10 +32,37 @@ async function initNotifBell() {
   await fetchUnreadCount();
   _notifPollInterval = setInterval(fetchUnreadCount, 30000);
 
+  let lastUnreadCount = -1;
+
+  function playNotificationSound() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+    } catch(e) {}
+  }
+
   async function fetchUnreadCount() {
     try {
       const res = await api.get('notifications/unread-count');
       const count = res?.data?.unread_count ?? res?.unread_count ?? 0;
+      
+      // Play sound only if it's not the initial load and unread count increased
+      if (lastUnreadCount !== -1 && count > lastUnreadCount) {
+        playNotificationSound();
+      }
+      lastUnreadCount = count;
+
       if (badge) {
         badge.textContent = count > 9 ? '9+' : count;
         badge.style.display = count > 0 ? 'flex' : 'none';
