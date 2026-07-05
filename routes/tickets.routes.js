@@ -223,4 +223,31 @@ router.put('/:id/resolve', authorize('admin'), async (req, res) => {
   }
 });
 
+// DELETE /api/tickets/:id — delete a ticket
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const ticketRes = await db.query('SELECT * FROM tickets WHERE id = $1', [id]);
+    const ticket = ticketRes.rows[0];
+    if (!ticket) {
+      return res.status(404).json({ success: false, error: 'Ticket not found.' });
+    }
+
+    const isAdminUser = req.user.role === 'admin';
+
+    // Students can only delete their own tickets
+    if (!isAdminUser && ticket.raised_by !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own tickets.' });
+    }
+
+    await db.query('DELETE FROM tickets WHERE id = $1', [id]);
+
+    res.json({ success: true, message: 'Ticket deleted successfully.' });
+  } catch (error) {
+    console.error('Delete ticket error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
 export default router;

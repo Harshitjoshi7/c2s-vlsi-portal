@@ -128,7 +128,14 @@ async function initNotifBell() {
     await fetchUnreadCount();
     closePanel();
     if (link && link !== '/dashboard') {
-      navigate(link);
+      // The SPA router doesn't have details routes like /tickets/:id yet
+      // so we navigate to the base route (e.g. /tickets)
+      let cleanLink = link;
+      const parts = link.split('/');
+      if (parts.length > 2) {
+        cleanLink = `/${parts[1]}`;
+      }
+      navigate(cleanLink);
     } else {
       // Refresh current page
       loadNotifications();

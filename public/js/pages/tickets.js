@@ -301,9 +301,15 @@ async function initTickets() {
                     <button class="btn btn-ghost btn-sm" onclick="editTicket(${t.id})" title="Update">
                       <i data-lucide="pencil" style="width:14px;height:14px"></i>
                     </button>
+                    <button class="btn btn-ghost btn-sm" onclick="deleteTicket(${t.id})" style="color:var(--error)" title="Delete">
+                      <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                    </button>
                     ` : t.status === 'open' ? `
                     <button class="btn btn-ghost btn-sm" onclick="editTicket(${t.id})" title="Edit">
                       <i data-lucide="pencil" style="width:14px;height:14px"></i>
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="deleteTicket(${t.id})" style="color:var(--error)" title="Delete">
+                      <i data-lucide="trash-2" style="width:14px;height:14px"></i>
                     </button>
                     ` : ''}
                   </div>
@@ -481,6 +487,17 @@ async function initTickets() {
   window.editTicket = (id) => {
     const t = allTickets.find(t => t.id === id);
     if (t) openModal(t);
+  };
+
+  window.deleteTicket = async (id) => {
+    if (!confirm('Are you sure you want to delete this ticket?')) return;
+    try {
+      await api.delete(`tickets/${id}`);
+      showToast({ message: 'Ticket deleted successfully', type: 'success' });
+      await loadTickets();
+    } catch(err) {
+      showToast({ message: err.message || 'Failed to delete ticket', type: 'error' });
+    }
   };
 
   // Global function so PCs page can open the ticket modal with a pre-selected PC
