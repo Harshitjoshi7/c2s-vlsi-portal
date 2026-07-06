@@ -1,4 +1,4 @@
-const CACHE_NAME = 'c2s-pwa-v11';
+const CACHE_NAME = 'c2s-pwa-v12';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -36,16 +36,16 @@ self.addEventListener('fetch', event => {
   if (!event.request.url.startsWith(self.location.origin)) return;
   if (event.request.url.includes('/api/')) return;
 
+  // Network-first strategy: try network, fall back to cache for offline support
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
+    fetch(event.request)
+      .then(response => {
         if (!response || response.status !== 200 || response.type !== 'basic') return response;
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 
