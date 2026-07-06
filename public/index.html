@@ -8,7 +8,8 @@
 
   <!-- PWA / Home Screen -->
   <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" href="/icons/logo.png">
+  <link rel="apple-touch-icon" href="/icons/logo.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="C2S VLSI">
@@ -31,11 +32,23 @@
           .then(registration => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
             
-            // Periodically check for updates (every 1 hour = 3600000ms)
-            // so users who leave the app open for days get auto-updated.
+            // Check for updates every 5 minutes so users get fresh code quickly
             setInterval(() => {
               registration.update();
-            }, 3600000);
+            }, 300000);
+
+            // Detect when a new SW is waiting and auto-activate it
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New version available — skip waiting to activate immediately
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              }
+            });
           })
           .catch(err => {
             console.log('ServiceWorker registration failed: ', err);

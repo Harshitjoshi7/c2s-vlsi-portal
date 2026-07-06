@@ -457,7 +457,11 @@ async function initTasks() {
   }
 
   ['taskSearch','taskStatusFilter','taskPriorityFilter'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', applyFilters);
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    }
   });
 
   // View toggles

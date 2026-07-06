@@ -19,6 +19,13 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
+// Listen for SKIP_WAITING message from the page to activate new version immediately
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames =>
