@@ -260,7 +260,7 @@ router.put('/:id', authorize('admin'), async (req, res) => {
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    let { status, progress_notes, user_id } = req.body; // allow user_id for admin targeting specific student
+    let { status, progress_notes, user_id } = req.body;
 
     if (!status) {
       return res.status(400).json({ success: false, error: 'Status is required.' });
@@ -285,7 +285,7 @@ router.put('/:id/status', async (req, res) => {
     // Determine whose assignment we are updating
     const targetUserId = (req.user.role === 'admin' && user_id) ? user_id : req.user.id;
 
-    // Verify the student is assigned to this task
+    // Find the specific student's assignment
     const assignmentRes = await db.query(
       'SELECT * FROM task_assignments WHERE task_id = $1 AND user_id = $2',
       [id, targetUserId]
@@ -296,40 +296,48 @@ router.put('/:id/status', async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not assigned to this task.' });
     }
 
+    // If admin is not targeting a specific student and has no assignment, update global only
     if (req.user.role === 'admin' && !assignment && !user_id) {
-      // Admin updates global task status if not targeting a student
       await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
+      const updatedRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
+      return res.json({ success: true, data: updatedRes.rows[0] });
     }
 
-    // Update assignment progress notes, completed_at, and individual status
+    // Update the individual student's assignment
     if (assignment) {
       const completedAt = status === 'completed' ? new Date().toISOString() : null;
       await db.query(`
         UPDATE task_assignments SET
           status = $1,
           progress_notes = COALESCE($2, progress_notes),
-          completed_at = COALESCE($3, completed_at)
+          completed_at = $3
         WHERE id = $4
       `, [status, progress_notes || null, completedAt, assignment.id]);
-    }
 
-    // Gamification: Add 20 points if completing for the first time
-    if (status === 'completed' && assignment && assignment.status !== 'completed') {
-      await db.query('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = $1', [targetUserId]);
-    }
-
-    // Auto-update global task status if admin marked a student as complete, 
-    // and all assignments are now completed
-    if (assignment && status === 'completed') {
-      const allAssignmentsRes = await db.query('SELECT status FROM task_assignments WHERE task_id = $1', [id]);
-      const allCompleted = allAssignmentsRes.rows.every(a => a.status === 'completed');
-      if (allCompleted) {
-        await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['completed', id]);
+      // Gamification: Add 20 points if completing for the first time
+      if (status === 'completed' && assignment.status !== 'completed') {
+        await db.query('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = $1', [targetUserId]);
       }
+
+      // Always recalculate the global task status from ALL assignments
+      const allAssignmentsRes = await db.query('SELECT status FROM task_assignments WHERE task_id = $1', [id]);
+      const allStatuses = allAssignmentsRes.rows.map(a => a.status);
+
+      let newGlobalStatus;
+      if (allStatuses.every(s => s === 'completed')) {
+        newGlobalStatus = 'completed';
+      } else if (allStatuses.some(s => s === 'under_review')) {
+        newGlobalStatus = 'under_review';
+      } else if (allStatuses.some(s => s === 'in_progress')) {
+        newGlobalStatus = 'in_progress';
+      } else {
+        newGlobalStatus = 'assigned';
+      }
+
+      await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newGlobalStatus, id]);
     }
 
     const updatedRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
-
     res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update task status error:', error);
