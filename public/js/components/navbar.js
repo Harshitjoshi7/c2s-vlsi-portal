@@ -58,11 +58,11 @@ function renderSidebar() {
 
         <span class="nav-section">Tracking</span>
         ${navItem('calendar-check', 'Attendance', '/attendance')}
+        ${navItem('megaphone', 'Announcements', '/announcements')}
 
         ${isAdminUser ? `
           <span class="nav-section">Admin</span>
           ${navItem('users', 'Users', '/users')}
-          ${navItem('megaphone', 'Announcements', '/announcements')}
           ${navItem('bar-chart-3', 'Reports', '/reports')}
         ` : ''}
 

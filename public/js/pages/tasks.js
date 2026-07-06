@@ -358,11 +358,11 @@ async function initTasks() {
                       </div>
                     </div>
                     <div style="display:flex;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
-                      ${task.status !== 'completed' ? `
+                      ${task.status !== 'completed' && task.status !== 'under_review' ? `
                       <select class="form-select btn-sm" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
+                        <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
                         <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
-                        <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                        <option value="completed">Submit for Review</option>
                       </select>
                       ` : ''}
                     </div>
@@ -550,7 +550,18 @@ async function initTasks() {
         assigneesContainer.style.display = 'none';
       }
     } else {
-      document.getElementById('viewTaskStatus').textContent = st.label;
+      // Student view: show status with change dropdown
+      if (task.status !== 'completed' && task.status !== 'under_review') {
+        document.getElementById('viewTaskStatus').innerHTML = `
+          <select class="form-select btn-sm" style="width:auto;padding:4px 28px 4px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
+            <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+            <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+            <option value="completed">Submit for Review</option>
+          </select>
+        `;
+      } else {
+        document.getElementById('viewTaskStatus').innerHTML = `<span style="padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>`;
+      }
       document.getElementById('viewTaskAssigneesContainer').style.display = 'none';
     }
     
