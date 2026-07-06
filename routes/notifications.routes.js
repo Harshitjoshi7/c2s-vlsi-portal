@@ -51,6 +51,21 @@ router.put('/read-all', async (req, res) => {
   }
 });
 
+// DELETE /api/notifications/clear-all — delete all notifications for the user
+router.delete('/clear-all', async (req, res) => {
+  try {
+    await db.query(
+      'DELETE FROM notifications WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    res.json({ success: true, data: { message: 'All notifications cleared.' } });
+  } catch (error) {
+    console.error('Clear all error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
 // PUT /api/notifications/:id/read — mark as read
 router.put('/:id/read', async (req, res) => {
   try {

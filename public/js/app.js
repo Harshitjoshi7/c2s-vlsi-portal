@@ -97,7 +97,10 @@ function renderAppLayout(contentHtml) {
     <div class="notif-panel" id="notifPanel" style="display:none">
       <div class="notif-panel-header">
         <span class="notif-panel-title">Notifications</span>
-        <button class="btn btn-ghost btn-sm" id="markAllReadBtn" style="font-size:0.78rem;color:var(--accent-primary)">Mark all read</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="markAllReadBtn" style="font-size:0.78rem;color:var(--accent-primary)">Mark all read</button>
+          <button class="btn btn-ghost btn-sm" id="clearAllNotifsBtn" style="font-size:0.78rem;color:var(--error)">Clear all</button>
+        </div>
       </div>
       <div class="notif-list" id="notifList">
         <div style="text-align:center;padding:var(--space-xl);color:var(--text-muted);font-size:0.875rem">Loading...</div>

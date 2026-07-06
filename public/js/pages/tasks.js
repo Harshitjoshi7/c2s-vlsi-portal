@@ -140,6 +140,44 @@ function renderTasks() {
         </div>
       </div>
     </div>
+
+    <!-- View Task Modal -->
+    <div class="modal-overlay" id="viewTaskModalOverlay" style="display:none">
+      <div class="modal" style="max-width:600px">
+        <div class="modal-header">
+          <h3 class="modal-title" id="viewTaskTitle">Task Details</h3>
+          <button class="modal-close" id="viewTaskModalClose">
+            <i data-lucide="x" style="width:20px;height:20px"></i>
+          </button>
+        </div>
+        <div class="modal-body" style="padding-top:0">
+          <div style="display:flex;gap:8px;margin-bottom:var(--space-md);flex-wrap:wrap" id="viewTaskBadges"></div>
+          <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-lg)" id="viewTaskDesc"></p>
+          <div class="grid grid-2" style="gap:var(--space-md);background:rgba(255,255,255,0.02);padding:var(--space-md);border-radius:var(--border-radius);border:1px solid var(--border-color)">
+            <div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Deadline</div>
+              <div style="font-weight:500" id="viewTaskDeadline"></div>
+            </div>
+            <div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Category</div>
+              <div style="font-weight:500" id="viewTaskCategory"></div>
+            </div>
+            <div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Assigned By</div>
+              <div style="font-weight:500" id="viewTaskAssignedBy"></div>
+            </div>
+            <div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Status</div>
+              <div style="font-weight:500" id="viewTaskStatus"></div>
+            </div>
+          </div>
+          <div id="viewTaskAssigneesContainer" style="margin-top:var(--space-md);display:none">
+            <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px">Assignees</div>
+            <div id="viewTaskAssignees" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -215,11 +253,19 @@ async function initTasks() {
 
     if (isAdminUser) {
       const assignments = [];
+      const statusFilter = document.getElementById('taskStatusFilter')?.value || '';
+      
       tasks.forEach(task => {
         if (task.assignees && task.assignees.length > 0) {
-          task.assignees.forEach(a => assignments.push({ task, student: a }));
+          task.assignees.forEach(a => {
+            if (!statusFilter || a.status === statusFilter || task.status === statusFilter) {
+              assignments.push({ task, student: a });
+            }
+          });
         } else {
-          assignments.push({ task, student: null });
+          if (!statusFilter || task.status === statusFilter) {
+            assignments.push({ task, student: null });
+          }
         }
       });
 
@@ -256,9 +302,9 @@ async function initTasks() {
                         </div>
                       ` : '<span style="color:var(--text-muted);font-style:italic">Unassigned</span>'}
                     </td>
-                    <td style="padding:12px;vertical-align:middle">
-                      <div style="font-weight:500;color:var(--text-primary);margin-bottom:4px">${task.title}</div>
-                      ${task.category ? `<span class="badge badge-info" style="font-size:0.65rem">${task.category}</span>` : ''}
+                    <td style="padding:12px;vertical-align:middle;cursor:pointer" onclick="viewTask(${task.id})">
+                      <div style="font-weight:500;color:var(--text-primary);margin-bottom:4px;display:inline-block">${task.title}</div>
+                      ${task.category ? `<span class="badge badge-info" style="font-size:0.65rem;margin-left:8px">${task.category}</span>` : ''}
                     </td>
                     <td style="padding:12px;vertical-align:middle">
                       <span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>
@@ -295,7 +341,7 @@ async function initTasks() {
             const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
 
             return `
-              <div class="card" style="border-left:3px solid ${pri.color};transition:all 0.2s">
+              <div class="card" style="border-left:3px solid ${pri.color};transition:all 0.2s;cursor:pointer" onclick="viewTask(${task.id})">
                 <div class="card-body" style="padding:var(--space-lg)">
                   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-md)">
                     <div style="flex:1">
@@ -311,7 +357,7 @@ async function initTasks() {
                         ${task.deadline ? `<span style="font-size:0.8rem;color:${isOverdue ? 'var(--error)' : 'var(--text-muted)'}"><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>${new Date(task.deadline).toLocaleDateString()}</span>` : ''}
                       </div>
                     </div>
-                    <div style="display:flex;gap:4px;flex-shrink:0">
+                    <div style="display:flex;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
                       ${task.status !== 'completed' ? `
                       <select class="form-select btn-sm" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
                         <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
@@ -358,7 +404,7 @@ async function initTasks() {
                 ${colTasks.map(task => {
                   const pri = priorityConfig[task.priority] || priorityConfig.medium;
                   return `
-                    <div class="card" style="border:1px solid var(--border-color);cursor:pointer;padding:var(--space-md)">
+                    <div class="card" style="border:1px solid var(--border-color);cursor:pointer;padding:var(--space-md)" onclick="viewTask(${task.id})">
                       <div style="margin-bottom:6px">
                         <span style="padding:2px 8px;border-radius:20px;font-size:0.68rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>
                       </div>
@@ -394,8 +440,15 @@ async function initTasks() {
 
     const filtered = allTasks.filter(t => {
       const matchSearch = !search || (t.title || '').toLowerCase().includes(search) || (t.description || '').toLowerCase().includes(search);
-      const matchStatus = !statusFilter || t.status === statusFilter;
       const matchPriority = !priorityFilter || t.priority === priorityFilter;
+      let matchStatus = !statusFilter || t.status === statusFilter;
+      
+      if (isAdminUser && statusFilter && t.assignees) {
+        // For admin, a task matches if ANY of its assignees matches the status,
+        // or the task itself matches the status
+        matchStatus = matchStatus || t.assignees.some(a => a.status === statusFilter);
+      }
+      
       return matchSearch && matchStatus && matchPriority;
     });
 
@@ -421,7 +474,6 @@ async function initTasks() {
     applyFilters();
   });
 
-  // Modal
   const overlay = document.getElementById('taskModalOverlay');
   function openModal(task = null) {
     editingTaskId = task ? task.id : null;
@@ -441,6 +493,61 @@ async function initTasks() {
   document.getElementById('taskModalClose')?.addEventListener('click', closeModal);
   document.getElementById('taskModalCancel')?.addEventListener('click', closeModal);
   overlay?.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+  
+  // View Modal
+  const viewOverlay = document.getElementById('viewTaskModalOverlay');
+  function openViewModal(task) {
+    document.getElementById('viewTaskTitle').textContent = task.title;
+    document.getElementById('viewTaskDesc').textContent = task.description || 'No description provided.';
+    
+    const pri = priorityConfig[task.priority] || priorityConfig.medium;
+    const st = statusConfig[task.status] || statusConfig.assigned;
+    
+    let badgesHtml = \`<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase">\${pri.label}</span>\`;
+    if (!isAdminUser) {
+      badgesHtml += \`<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:\${st.bg};color:\${st.color}">\${st.label}</span>\`;
+    }
+    if (task.category) {
+      badgesHtml += \`<span class="badge badge-info">\${task.category}</span>\`;
+    }
+    document.getElementById('viewTaskBadges').innerHTML = badgesHtml;
+    
+    document.getElementById('viewTaskDeadline').textContent = task.deadline ? new Date(task.deadline).toLocaleDateString() : '-';
+    document.getElementById('viewTaskCategory').textContent = task.category || '-';
+    document.getElementById('viewTaskAssignedBy').textContent = task.assigned_by_name || '-';
+    
+    if (isAdminUser) {
+      document.getElementById('viewTaskStatus').textContent = st.label;
+      const assigneesContainer = document.getElementById('viewTaskAssigneesContainer');
+      const assigneesDiv = document.getElementById('viewTaskAssignees');
+      if (task.assignees && task.assignees.length > 0) {
+        assigneesDiv.innerHTML = task.assignees.map(a => {
+          const ast = statusConfig[a.status] || statusConfig.assigned;
+          return \`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-color)">
+            <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:600">\${a.name.charAt(0).toUpperCase()}</div>
+            <span style="font-size:0.75rem;font-weight:500">\${a.name}</span>
+            <span style="font-size:0.65rem;padding:2px 6px;border-radius:10px;background:\${ast.bg};color:\${ast.color}">\${ast.label}</span>
+          </div>\`;
+        }).join('');
+        assigneesContainer.style.display = 'block';
+      } else {
+        assigneesContainer.style.display = 'none';
+      }
+    } else {
+      document.getElementById('viewTaskStatus').textContent = st.label;
+      document.getElementById('viewTaskAssigneesContainer').style.display = 'none';
+    }
+    
+    viewOverlay.style.display = 'flex';
+  }
+  function closeViewModal() { viewOverlay.style.display = 'none'; }
+  document.getElementById('viewTaskModalClose')?.addEventListener('click', closeViewModal);
+  viewOverlay?.addEventListener('click', e => { if (e.target === viewOverlay) closeViewModal(); });
+  
+  window.viewTask = (id) => {
+    const task = allTasks.find(t => t.id === id);
+    if (task) openViewModal(task);
+  };
 
   // Submit
   document.getElementById('taskSubmitBtn')?.addEventListener('click', async () => {

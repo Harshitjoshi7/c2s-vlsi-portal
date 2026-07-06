@@ -25,6 +25,7 @@ async function initNotifBell() {
   const overlay = document.getElementById('notifOverlay');
   const badge = document.getElementById('notifBadge');
   const markAllBtn = document.getElementById('markAllReadBtn');
+  const clearAllBtn = document.getElementById('clearAllNotifsBtn');
 
   if (!bell) return;
 
@@ -102,6 +103,16 @@ async function initNotifBell() {
       await fetchUnreadCount();
       loadNotifications();
       showToast({ message: 'All notifications marked as read', type: 'success' });
+    } catch(e) {}
+  });
+
+  clearAllBtn?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to clear all notifications?')) return;
+    try {
+      await api.delete('notifications/clear-all');
+      await fetchUnreadCount();
+      loadNotifications();
+      showToast({ message: 'All notifications cleared', type: 'success' });
     } catch(e) {}
   });
 

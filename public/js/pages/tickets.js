@@ -361,11 +361,11 @@ async function initTickets() {
   if (adminFields && isAdminUser) adminFields.style.display = '';
   if (resolutionGroup && isAdminUser) resolutionGroup.style.display = '';
 
-  // Show/hide PC selector based on issue type
+  // Show/hide PC selector
   function updatePCVisibility() {
-    const typeVal = document.getElementById('ticketType')?.value;
     if (pcGroup) {
-      pcGroup.style.display = (typeVal === 'hardware' && !isAdminUser) ? '' : 'none';
+      // Allow students to select a PC for any ticket type
+      pcGroup.style.display = !isAdminUser ? '' : 'none';
     }
   }
   document.getElementById('ticketType')?.addEventListener('change', updatePCVisibility);
