@@ -319,6 +319,32 @@ router.put('/:id/status', async (req, res) => {
         await db.query('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = $1', [targetUserId]);
       }
 
+      // Notification: Student submits for review → notify all admins
+      if (req.user.role === 'student' && status === 'under_review') {
+        const studentName = req.user.name || 'A student';
+        const adminsRes = await db.query("SELECT id FROM users WHERE role = 'admin'");
+        for (const admin of adminsRes.rows) {
+          await createNotification(
+            admin.id,
+            'task',
+            'Task Review Request',
+            `${studentName} has submitted "${task.title}" for review.`,
+            `/tasks`
+          );
+        }
+      }
+
+      // Notification: Admin approves completed → notify the student
+      if (req.user.role === 'admin' && status === 'completed' && assignment.status !== 'completed') {
+        await createNotification(
+          targetUserId,
+          'task',
+          'Task Approved!',
+          `Your task "${task.title}" has been approved and marked as completed.`,
+          `/tasks`
+        );
+      }
+
       // Always recalculate the global task status from ALL assignments
       const allAssignmentsRes = await db.query('SELECT status FROM task_assignments WHERE task_id = $1', [id]);
       const allStatuses = allAssignmentsRes.rows.map(a => a.status);

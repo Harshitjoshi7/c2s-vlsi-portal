@@ -113,15 +113,6 @@ function renderTasks() {
                 <label class="form-label">Deadline</label>
                 <input type="date" class="form-input" id="taskDeadline" />
               </div>
-              <div class="form-group">
-                <label class="form-label">Status</label>
-                <select class="form-select" id="taskStatus">
-                  <option value="assigned">Assigned</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="under_review">Under Review</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
             </div>
             <div class="form-group" id="taskAssigneeGroup">
               <label class="form-label">Assign To</label>
@@ -310,7 +301,14 @@ async function initTasks() {
                       <span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>
                     </td>
                     <td style="padding:12px;vertical-align:middle">
-                      <span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>
+                      ${student ? `
+                      <select class="form-select btn-sm" style="width:auto;padding:3px 24px 3px 8px;font-size:0.7rem;border-radius:20px;background:${st.bg};color:${st.color};border:1px solid ${st.color}33;font-weight:600" onchange="updateTaskStatus(${task.id}, this.value, ${student.id})">
+                        <option value="assigned" ${student.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                        <option value="in_progress" ${student.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="under_review" ${student.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+                        <option value="completed" ${student.status === 'completed' ? 'selected' : ''}>Completed</option>
+                      </select>
+                      ` : `<span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>`}
                     </td>
                     <td style="padding:12px;vertical-align:middle">
                       ${task.deadline ? `<span style="font-size:0.8rem;color:${isOverdue ? 'var(--error)' : 'var(--text-muted)'}">${new Date(task.deadline).toLocaleDateString()}</span>` : '-'}
@@ -358,10 +356,11 @@ async function initTasks() {
                       </div>
                     </div>
                     <div style="display:flex;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
-                      ${task.status !== 'completed' && task.status !== 'under_review' ? `
+                      ${task.status !== 'completed' ? `
                       <select class="form-select btn-sm" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
                         <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
                         <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
                         <option value="completed">Submit for Review</option>
                       </select>
                       ` : ''}
@@ -487,7 +486,6 @@ async function initTasks() {
     document.getElementById('taskPriority').value = task?.priority || 'medium';
     document.getElementById('taskCategory').value = task?.category || '';
     document.getElementById('taskDeadline').value = task?.deadline || '';
-    document.getElementById('taskStatus').value = task?.status || 'assigned';
     document.getElementById('taskSubmitText').textContent = task ? 'Update Task' : 'Create Task';
     overlay.style.display = 'flex';
   }
@@ -550,12 +548,13 @@ async function initTasks() {
         assigneesContainer.style.display = 'none';
       }
     } else {
-      // Student view: show status with change dropdown
-      if (task.status !== 'completed' && task.status !== 'under_review') {
+      // Student view: show status with change dropdown (locked only when admin-approved 'completed')
+      if (task.status !== 'completed') {
         document.getElementById('viewTaskStatus').innerHTML = `
           <select class="form-select btn-sm" style="width:auto;padding:4px 28px 4px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
             <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
             <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+            <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
             <option value="completed">Submit for Review</option>
           </select>
         `;
@@ -591,7 +590,6 @@ async function initTasks() {
       priority: document.getElementById('taskPriority').value,
       category: document.getElementById('taskCategory').value.trim() || null,
       deadline: document.getElementById('taskDeadline').value || null,
-      status: document.getElementById('taskStatus').value,
       assigned_to: assignedTo,
     };
 
