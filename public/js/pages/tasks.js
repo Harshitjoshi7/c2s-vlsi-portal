@@ -503,12 +503,12 @@ async function initTasks() {
     const pri = priorityConfig[task.priority] || priorityConfig.medium;
     const st = statusConfig[task.status] || statusConfig.assigned;
     
-    let badgesHtml = \`<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase">\${pri.label}</span>\`;
+    let badgesHtml = `<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>`;
     if (!isAdminUser) {
-      badgesHtml += \`<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:\${st.bg};color:\${st.color}">\${st.label}</span>\`;
+      badgesHtml += `<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>`;
     }
     if (task.category) {
-      badgesHtml += \`<span class="badge badge-info">\${task.category}</span>\`;
+      badgesHtml += `<span class="badge badge-info">${task.category}</span>`;
     }
     document.getElementById('viewTaskBadges').innerHTML = badgesHtml;
     
@@ -523,11 +523,11 @@ async function initTasks() {
       if (task.assignees && task.assignees.length > 0) {
         assigneesDiv.innerHTML = task.assignees.map(a => {
           const ast = statusConfig[a.status] || statusConfig.assigned;
-          return \`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-color)">
-            <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:600">\${a.name.charAt(0).toUpperCase()}</div>
-            <span style="font-size:0.75rem;font-weight:500">\${a.name}</span>
-            <span style="font-size:0.65rem;padding:2px 6px;border-radius:10px;background:\${ast.bg};color:\${ast.color}">\${ast.label}</span>
-          </div>\`;
+          return `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-color)">
+            <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:600">${a.name.charAt(0).toUpperCase()}</div>
+            <span style="font-size:0.75rem;font-weight:500">${a.name}</span>
+            <span style="font-size:0.65rem;padding:2px 6px;border-radius:10px;background:${ast.bg};color:${ast.color}">${ast.label}</span>
+          </div>`;
         }).join('');
         assigneesContainer.style.display = 'block';
       } else {
