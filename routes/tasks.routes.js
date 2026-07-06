@@ -256,11 +256,11 @@ router.put('/:id', authorize('admin'), async (req, res) => {
   }
 });
 
-// PUT /api/tasks/:id/status — update task status (assigned student)
+// PUT /api/tasks/:id/status — update task status (assigned student or admin)
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, progress_notes } = req.body;
+    let { status, progress_notes, user_id } = req.body; // allow user_id for admin targeting specific student
 
     if (!status) {
       return res.status(400).json({ success: false, error: 'Status is required.' });
@@ -271,16 +271,24 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
+    // Intercept student 'completed' -> 'under_review'
+    if (req.user.role === 'student' && status === 'completed') {
+      status = 'under_review';
+    }
+
     const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
     const task = taskRes.rows[0];
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found.' });
     }
 
+    // Determine whose assignment we are updating
+    const targetUserId = (req.user.role === 'admin' && user_id) ? user_id : req.user.id;
+
     // Verify the student is assigned to this task
     const assignmentRes = await db.query(
       'SELECT * FROM task_assignments WHERE task_id = $1 AND user_id = $2',
-      [id, req.user.id]
+      [id, targetUserId]
     );
     const assignment = assignmentRes.rows[0];
 
@@ -288,8 +296,8 @@ router.put('/:id/status', async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not assigned to this task.' });
     }
 
-    if (req.user.role === 'admin' && !assignment) {
-      // Admin updates global task status if not assigned
+    if (req.user.role === 'admin' && !assignment && !user_id) {
+      // Admin updates global task status if not targeting a student
       await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
     }
 
@@ -306,8 +314,18 @@ router.put('/:id/status', async (req, res) => {
     }
 
     // Gamification: Add 20 points if completing for the first time
-    if (status === 'completed' && task.status !== 'completed' && assignment) {
-      await db.query('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = $1', [req.user.id]);
+    if (status === 'completed' && assignment && assignment.status !== 'completed') {
+      await db.query('UPDATE users SET points = COALESCE(points, 0) + 20 WHERE id = $1', [targetUserId]);
+    }
+
+    // Auto-update global task status if admin marked a student as complete, 
+    // and all assignments are now completed
+    if (assignment && status === 'completed') {
+      const allAssignmentsRes = await db.query('SELECT status FROM task_assignments WHERE task_id = $1', [id]);
+      const allCompleted = allAssignmentsRes.rows.every(a => a.status === 'completed');
+      if (allCompleted) {
+        await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['completed', id]);
+      }
     }
 
     const updatedRes = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);

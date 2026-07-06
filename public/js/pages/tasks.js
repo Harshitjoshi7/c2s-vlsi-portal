@@ -521,7 +521,14 @@ async function initTasks() {
     document.getElementById('viewTaskAssignedBy').textContent = task.assigned_by_name || '-';
     
     if (isAdminUser) {
-      document.getElementById('viewTaskStatus').textContent = st.label;
+      document.getElementById('viewTaskStatus').innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px">
+          ${st.label}
+          <button class="btn btn-ghost btn-sm" onclick="deleteTask(${task.id})" style="color:var(--error);margin-left:auto" title="Delete Task">
+            <i data-lucide="trash-2" style="width:14px;height:14px;margin-right:4px"></i> Delete
+          </button>
+        </div>
+      `;
       const assigneesContainer = document.getElementById('viewTaskAssigneesContainer');
       const assigneesDiv = document.getElementById('viewTaskAssignees');
       if (task.assignees && task.assignees.length > 0) {
@@ -530,7 +537,12 @@ async function initTasks() {
           return `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-color)">
             <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:600">${a.name.charAt(0).toUpperCase()}</div>
             <span style="font-size:0.75rem;font-weight:500">${a.name}</span>
-            <span style="font-size:0.65rem;padding:2px 6px;border-radius:10px;background:${ast.bg};color:${ast.color}">${ast.label}</span>
+            <select class="form-select btn-sm" style="width:auto;padding:2px 24px 2px 8px;font-size:0.65rem;border:none;background:transparent;color:${ast.color}" onchange="updateTaskStatus(${task.id}, this.value, ${a.id})">
+              <option value="assigned" ${a.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+              <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+              <option value="under_review" ${a.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+              <option value="completed" ${a.status === 'completed' ? 'selected' : ''}>Completed</option>
+            </select>
           </div>`;
         }).join('');
         assigneesContainer.style.display = 'block';
@@ -543,6 +555,7 @@ async function initTasks() {
     }
     
     viewOverlay.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
   }
   function closeViewModal() { viewOverlay.style.display = 'none'; }
   document.getElementById('viewTaskModalClose')?.addEventListener('click', closeViewModal);
@@ -611,13 +624,21 @@ async function initTasks() {
     }
   };
 
-  window.updateTaskStatus = async (id, status) => {
+  window.updateTaskStatus = async (id, status, userId = null) => {
     try {
-      await api.put(`tasks/${id}/status`, { status });
+      const payload = { status };
+      if (userId && isAdminUser) payload.user_id = userId;
+
+      await api.put(`tasks/${id}/status`, payload);
       showToast({ message: 'Status updated!', type: 'success' });
-      const task = allTasks.find(t => t.id === id);
-      if (task) task.status = status;
-      applyFilters();
+      await loadTasks(); // reload from server to get accurate assignment state
+      
+      // If modal is open, re-render it
+      const viewOverlay = document.getElementById('viewTaskModalOverlay');
+      if (viewOverlay && viewOverlay.style.display !== 'none') {
+        const task = allTasks.find(t => t.id === id);
+        if (task) openViewModal(task);
+      }
     } catch(err) {
       showToast({ message: err.message || 'Failed to update', type: 'error' });
     }
