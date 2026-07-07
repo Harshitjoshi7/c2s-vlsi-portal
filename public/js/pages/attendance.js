@@ -3,6 +3,24 @@
    Mark attendance, view records and statistics
    ============================================================ */
 
+function getWorkingDays(startDateStr, endDateStr) {
+  if (!startDateStr || !endDateStr) return 0;
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  if (isNaN(start) || isNaN(end)) return 0;
+  start.setHours(0,0,0,0);
+  end.setHours(0,0,0,0);
+  
+  let count = 0;
+  let cur = new Date(start);
+  while(cur <= end) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
 function renderAttendance() {
   const user = getUser();
   const isAdminUser = user && user.role === 'admin';
@@ -266,12 +284,50 @@ async function initAttendance() {
     }
   }
 
-  function updateStats() {
-    const present = allAttendance.filter(a => a.status === 'present').length;
-    const absent = allAttendance.filter(a => a.status === 'absent').length;
-    const late = allAttendance.filter(a => a.status === 'late').length;
-    const total = allAttendance.length;
-    const pct = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+  function updateStats(records = allAttendance) {
+    const monthFilter = document.getElementById('attMonthFilter')?.value;
+    const present = records.filter(a => a.status === 'present').length;
+    let absent = records.filter(a => a.status === 'absent').length;
+    const late = records.filter(a => a.status === 'late').length;
+    const total = records.length;
+    
+    let expectedDays = total;
+    
+    // Determine the calculation period based on filter
+    let calcEnd = new Date(); // default to today
+    let calcStart = null;
+    
+    if (monthFilter) {
+      const [year, month] = monthFilter.split('-');
+      calcStart = new Date(year, parseInt(month) - 1, 1);
+      const endOfMonth = new Date(year, parseInt(month), 0);
+      if (endOfMonth < calcEnd) calcEnd = endOfMonth; // cap at end of that month if past
+    }
+    
+    if (isAdminUser && studentsList && studentsList.length > 0) {
+      expectedDays = studentsList.reduce((acc, u) => {
+        let start = calcStart || new Date(u.created_at || new Date());
+        let userCreated = new Date(u.created_at || new Date());
+        if (userCreated > start) start = userCreated; // don't count days before user joined
+        if (start > calcEnd) return acc;
+        return acc + getWorkingDays(start, calcEnd);
+      }, 0);
+    } else if (!isAdminUser && user && user.created_at) {
+      let start = calcStart || new Date(user.created_at);
+      let userCreated = new Date(user.created_at);
+      if (userCreated > start) start = userCreated;
+      if (start <= calcEnd) {
+        expectedDays = getWorkingDays(start, calcEnd);
+      } else {
+        expectedDays = 0;
+      }
+    }
+    
+    expectedDays = Math.max(expectedDays, total);
+    const missingDays = expectedDays > total ? expectedDays - total : 0;
+    absent += missingDays;
+
+    const pct = expectedDays > 0 ? Math.round(((present + late) / expectedDays) * 100) : 0;
 
     document.getElementById('attPresent').textContent = present;
     document.getElementById('attAbsent').textContent = absent;
@@ -365,6 +421,7 @@ async function initAttendance() {
       return matchStatus && matchMonth && matchUser;
     });
     renderAttendanceTable(filtered);
+    updateStats(filtered);
   }
 
   function updateCalendar() {

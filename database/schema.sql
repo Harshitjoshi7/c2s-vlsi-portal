@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS task_assignments (
   id SERIAL PRIMARY KEY,
   task_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
+  status TEXT CHECK(status IN ('assigned', 'in_progress', 'under_review', 'completed')) DEFAULT 'assigned',
   progress_notes TEXT,
   assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   completed_at TIMESTAMP,
