@@ -70,6 +70,7 @@ self.addEventListener('push', event => {
     tag: 'c2s-notification',           // Collapse duplicates
     renotify: true,
     vibrate: [150, 75, 150],
+    silent: false,                     // Enforce default system sound
     data: { link: data.link },
     actions: [
       { action: 'open', title: 'Open App' },
@@ -78,7 +79,15 @@ self.addEventListener('push', event => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    Promise.all([
+      self.registration.showNotification(data.title, options),
+      // Broadcast to open clients to play custom sound if app is open
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+        windowClients.forEach(client => {
+          client.postMessage({ type: 'PLAY_SOUND', notification: data });
+        });
+      })
+    ])
   );
 });
 

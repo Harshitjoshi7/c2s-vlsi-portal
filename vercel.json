@@ -10,6 +10,12 @@
       "use": "@vercel/static"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/notifications/cron/daily-attendance",
+      "schedule": "0 10 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

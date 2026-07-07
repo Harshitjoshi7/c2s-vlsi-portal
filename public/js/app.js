@@ -209,5 +209,41 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPage();
 });
 
+// ── Service Worker Messages ───────────────────────────────────
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'PLAY_SOUND') {
+      playNotificationSound();
+    }
+  });
+}
+
+function playNotificationSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Play a short pleasant "ding"
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+    osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.1); // C6
+    
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.5);
+  } catch (e) {
+    console.warn('Audio play failed', e);
+  }
+}
+
 // ── Global Exports ───────────────────────────────────────────
 window.navigate = navigate;

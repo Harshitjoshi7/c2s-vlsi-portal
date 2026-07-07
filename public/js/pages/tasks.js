@@ -1,5 +1,5 @@
 /* ============================================================
-   C2S VLSI Lab Portal — Tasks Page
+   C2S VLSI Lab Portal — Tasks Page (Premium Redesign)
    Kanban-style and list view task management
    ============================================================ */
 
@@ -9,25 +9,27 @@ function renderTasks() {
 
   return `
     <div class="page-enter">
-      <div class="page-header">
+      <div class="page-header" style="background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: var(--border-radius-lg); padding: var(--space-xl); margin-bottom: var(--space-xl); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
         <div class="page-header-left">
-          <h1 class="page-title animate-slideUp">
-            <i data-lucide="list-checks" style="width:28px;height:28px;vertical-align:-4px;margin-right:10px;color:var(--warning)"></i>
+          <h1 class="page-title animate-slideUp" style="font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, var(--warning), #ffca28); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            <i data-lucide="list-checks" style="width:36px;height:36px;vertical-align:-6px;margin-right:12px;color:var(--warning)"></i>
             Tasks
           </h1>
-          <p class="page-subtitle animate-slideUp stagger-1">Track and manage work assignments</p>
+          <p class="page-subtitle animate-slideUp stagger-1" style="font-size: 1.1rem; color: var(--text-muted); margin-top: 8px;">Track, manage, and accelerate work assignments</p>
         </div>
         <div class="page-header-actions animate-slideUp stagger-2">
-          <div style="display:flex;gap:var(--space-sm)">
-            <button class="btn btn-secondary" id="taskViewList" title="List View">
-              <i data-lucide="list" style="width:16px;height:16px"></i>
-            </button>
-            <button class="btn btn-secondary" id="taskViewKanban" title="Kanban View">
-              <i data-lucide="kanban" style="width:16px;height:16px"></i>
-            </button>
+          <div style="display:flex;gap:var(--space-md); align-items:center;">
+            <div class="btn-group" style="background: rgba(0,0,0,0.2); border-radius: var(--border-radius); padding: 4px; border: 1px solid rgba(255,255,255,0.05);">
+              <button class="btn btn-ghost" id="taskViewList" title="List View" style="border-radius: var(--border-radius-sm); color: var(--text-primary); background: rgba(255,255,255,0.1);">
+                <i data-lucide="list" style="width:18px;height:18px"></i>
+              </button>
+              <button class="btn btn-ghost" id="taskViewKanban" title="Kanban View" style="border-radius: var(--border-radius-sm); color: var(--text-muted);">
+                <i data-lucide="kanban" style="width:18px;height:18px"></i>
+              </button>
+            </div>
             ${isAdminUser ? `
-            <button class="btn btn-primary" id="newTaskBtn">
-              <i data-lucide="plus" style="width:16px;height:16px"></i>
+            <button class="btn btn-primary" id="newTaskBtn" style="box-shadow: 0 4px 15px rgba(79, 143, 255, 0.4); font-weight: 600; padding: 10px 20px;">
+              <i data-lucide="plus" style="width:18px;height:18px; margin-right: 6px;"></i>
               New Task
             </button>
             ` : ''}
@@ -36,21 +38,21 @@ function renderTasks() {
       </div>
 
       <!-- Filters -->
-      <div class="card animate-slideUp stagger-2" style="margin-bottom:var(--space-lg)">
-        <div class="card-body" style="padding:var(--space-md)">
+      <div class="card animate-slideUp stagger-2" style="margin-bottom:var(--space-xl); background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); backdrop-filter: blur(10px);">
+        <div class="card-body" style="padding:var(--space-md) var(--space-lg)">
           <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center">
-            <div class="search-input" style="flex:1;min-width:200px">
-              <i data-lucide="search" class="search-icon"></i>
-              <input type="text" id="taskSearch" placeholder="Search tasks..." />
+            <div class="search-input" style="flex:1;min-width:250px;">
+              <i data-lucide="search" class="search-icon" style="color: var(--text-muted);"></i>
+              <input type="text" id="taskSearch" placeholder="Search tasks by name or description..." style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); padding: 10px 10px 10px 40px; width: 100%; color: var(--text-primary);" />
             </div>
-            <select class="form-select" id="taskStatusFilter" style="width:auto">
-              <option value="">All Status</option>
+            <select class="form-select" id="taskStatusFilter" style="width:160px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
+              <option value="">All Statuses</option>
               <option value="assigned">Assigned</option>
               <option value="in_progress">In Progress</option>
               <option value="under_review">Under Review</option>
               <option value="completed">Completed</option>
             </select>
-            <select class="form-select" id="taskPriorityFilter" style="width:auto">
+            <select class="form-select" id="taskPriorityFilter" style="width:160px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
               <option value="">All Priorities</option>
               <option value="critical">Critical</option>
               <option value="high">High</option>
@@ -62,13 +64,14 @@ function renderTasks() {
       </div>
 
       <!-- Tasks Container -->
-      <div id="tasksContainer">
+      <div id="tasksContainer" class="animate-slideUp stagger-3">
         <div style="display:flex;flex-direction:column;gap:var(--space-md)">
-          ${[1,2,3,4].map(() => `
-            <div class="card">
+          ${[1,2,3].map(() => `
+            <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
               <div class="card-body">
-                <div class="skeleton skeleton-heading" style="width:60%;margin-bottom:10px"></div>
-                <div class="skeleton skeleton-text" style="width:85%"></div>
+                <div class="skeleton skeleton-heading" style="width:40%;margin-bottom:12px; height:20px;"></div>
+                <div class="skeleton skeleton-text" style="width:75%; margin-bottom:8px;"></div>
+                <div class="skeleton skeleton-text" style="width:60%;"></div>
               </div>
             </div>
           `).join('')}
@@ -76,29 +79,29 @@ function renderTasks() {
       </div>
     </div>
 
-    <!-- Task Modal -->
-    <div class="modal-overlay" id="taskModalOverlay" style="display:none">
-      <div class="modal" style="max-width:620px">
-        <div class="modal-header">
-          <h3 class="modal-title" id="taskModalTitle">New Task</h3>
-          <button class="modal-close" id="taskModalClose">
+    <!-- Task Modal (Create/Edit) -->
+    <div class="modal-overlay" id="taskModalOverlay" style="display:none; backdrop-filter: blur(8px); background: rgba(0,0,0,0.6);">
+      <div class="modal" style="max-width:650px; background: rgba(20, 24, 45, 0.95); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+        <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+          <h3 class="modal-title" id="taskModalTitle" style="font-size: 1.4rem; font-weight: 700;">New Task</h3>
+          <button class="modal-close" id="taskModalClose" style="background: rgba(255,255,255,0.05); border-radius: 50%; padding: 4px;">
             <i data-lucide="x" style="width:20px;height:20px"></i>
           </button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="padding: 24px;">
           <form id="taskForm">
-            <div class="form-group">
-              <label class="form-label">Title *</label>
-              <input type="text" class="form-input" id="taskTitle" placeholder="Task title..." required />
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label class="form-label" style="font-weight: 600; color: var(--text-secondary);">Title *</label>
+              <input type="text" class="form-input" id="taskTitle" placeholder="Enter an actionable task title..." required style="font-size: 1.1rem; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);" />
             </div>
-            <div class="form-group">
-              <label class="form-label">Description</label>
-              <textarea class="form-textarea" id="taskDesc" rows="3" placeholder="Detailed description..."></textarea>
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label class="form-label" style="font-weight: 600; color: var(--text-secondary);">Description</label>
+              <textarea class="form-textarea" id="taskDesc" rows="4" placeholder="Provide detailed context and acceptance criteria..." style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 12px;"></textarea>
             </div>
-            <div class="grid grid-2" style="gap:var(--space-md)">
+            <div class="grid grid-2" style="gap:var(--space-lg); margin-bottom: 20px;">
               <div class="form-group">
-                <label class="form-label">Priority</label>
-                <select class="form-select" id="taskPriority">
+                <label class="form-label" style="font-weight: 600; color: var(--text-secondary);">Priority</label>
+                <select class="form-select" id="taskPriority" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);">
                   <option value="medium">Medium</option>
                   <option value="low">Low</option>
                   <option value="high">High</option>
@@ -106,66 +109,74 @@ function renderTasks() {
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">Category</label>
-                <input type="text" class="form-input" id="taskCategory" placeholder="e.g. Design, Simulation" />
+                <label class="form-label" style="font-weight: 600; color: var(--text-secondary);">Category</label>
+                <input type="text" class="form-input" id="taskCategory" placeholder="e.g., Synthesis, Design" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);" />
               </div>
               <div class="form-group">
-                <label class="form-label">Deadline</label>
-                <input type="date" class="form-input" id="taskDeadline" />
+                <label class="form-label" style="font-weight: 600; color: var(--text-secondary);">Deadline</label>
+                <input type="date" class="form-input" id="taskDeadline" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);" />
               </div>
             </div>
             <div class="form-group" id="taskAssigneeGroup">
-              <label class="form-label">Assign To</label>
-              <select class="form-select" id="taskAssignee" multiple style="height:120px">
+              <label class="form-label" style="font-weight: 600; color: var(--text-secondary);">Assign To</label>
+              <select class="form-select" id="taskAssignee" multiple style="height:140px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);">
               </select>
-              <p class="form-hint">Hold Ctrl/Cmd to select multiple</p>
+              <p class="form-hint" style="margin-top: 6px; color: var(--text-muted);"><i data-lucide="info" style="width:14px;height:14px;vertical-align:-2px;"></i> Hold Ctrl/Cmd to select multiple students</p>
             </div>
           </form>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" id="taskModalCancel">Cancel</button>
-          <button class="btn btn-primary" id="taskSubmitBtn">
+        <div class="modal-footer" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
+          <button class="btn btn-secondary" id="taskModalCancel" style="background: transparent; border: 1px solid rgba(255,255,255,0.2);">Cancel</button>
+          <button class="btn btn-primary" id="taskSubmitBtn" style="font-weight: 600; box-shadow: 0 4px 15px rgba(79, 143, 255, 0.4);">
             <span id="taskSubmitText">Create Task</span>
-            <div class="spinner" id="taskSubmitSpinner" style="display:none"></div>
+            <div class="spinner" id="taskSubmitSpinner" style="display:none; width: 16px; height: 16px;"></div>
           </button>
         </div>
       </div>
     </div>
 
     <!-- View Task Modal -->
-    <div class="modal-overlay" id="viewTaskModalOverlay" style="display:none">
-      <div class="modal" style="max-width:600px">
-        <div class="modal-header">
-          <h3 class="modal-title" id="viewTaskTitle">Task Details</h3>
-          <button class="modal-close" id="viewTaskModalClose">
+    <div class="modal-overlay" id="viewTaskModalOverlay" style="display:none; backdrop-filter: blur(8px); background: rgba(0,0,0,0.6);">
+      <div class="modal" style="max-width:650px; background: rgba(20, 24, 45, 0.95); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+        <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; display: flex; align-items: flex-start;">
+          <div style="flex:1;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap" id="viewTaskBadges"></div>
+            <h3 class="modal-title" id="viewTaskTitle" style="font-size: 1.5rem; font-weight: 800; line-height: 1.3;">Task Details</h3>
+          </div>
+          <button class="modal-close" id="viewTaskModalClose" style="background: rgba(255,255,255,0.05); border-radius: 50%; padding: 4px; margin-left: 16px;">
             <i data-lucide="x" style="width:20px;height:20px"></i>
           </button>
         </div>
-        <div class="modal-body" style="padding-top:0">
-          <div style="display:flex;gap:8px;margin-bottom:var(--space-md);flex-wrap:wrap" id="viewTaskBadges"></div>
-          <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-lg)" id="viewTaskDesc"></p>
-          <div class="grid grid-2" style="gap:var(--space-md);background:rgba(255,255,255,0.02);padding:var(--space-md);border-radius:var(--border-radius);border:1px solid var(--border-color)">
+        <div class="modal-body" style="padding: 24px; padding-top: 20px;">
+          <div style="background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius); padding: 16px; margin-bottom: 24px;">
+            <p style="color:var(--text-secondary);line-height:1.7;margin:0; font-size: 0.95rem;" id="viewTaskDesc"></p>
+          </div>
+          <div class="grid grid-2" style="gap:var(--space-md);background:linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));padding:var(--space-lg);border-radius:var(--border-radius);border:1px solid rgba(255,255,255,0.05); box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
             <div>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Deadline</div>
-              <div style="font-weight:500" id="viewTaskDeadline"></div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Deadline</div>
+              <div style="font-weight:600; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;" id="viewTaskDeadline"></div>
             </div>
             <div>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Category</div>
-              <div style="font-weight:500" id="viewTaskCategory"></div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Category</div>
+              <div style="font-weight:600; font-size: 0.95rem;" id="viewTaskCategory"></div>
             </div>
             <div>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Assigned By</div>
-              <div style="font-weight:500" id="viewTaskAssignedBy"></div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Assigned By</div>
+              <div style="font-weight:600; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;" id="viewTaskAssignedBy"></div>
             </div>
-            <div>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Status</div>
-              <div style="font-weight:500" id="viewTaskStatus"></div>
+            <div id="viewTaskStatusContainer">
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Global Status</div>
+              <div style="font-weight:600; font-size: 0.95rem;" id="viewTaskStatus"></div>
             </div>
           </div>
-          <div id="viewTaskAssigneesContainer" style="margin-top:var(--space-md);display:none">
-            <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px">Assignees</div>
-            <div id="viewTaskAssignees" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          <div id="viewTaskAssigneesContainer" style="margin-top:24px;display:none;">
+            <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Task Assignments</div>
+            <div id="viewTaskAssignees" style="display:flex;flex-direction:column;gap:10px;"></div>
           </div>
+        </div>
+        <div class="modal-footer" id="viewTaskModalFooter" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; display: flex; justify-content: space-between;">
+           <div id="viewTaskActionsLeft"></div>
+           <div id="viewTaskActionsRight"></div>
         </div>
       </div>
     </div>
@@ -199,7 +210,6 @@ async function initTasks() {
     document.getElementById('taskAssigneeGroup')?.remove();
   }
 
-  // Load tasks
   async function loadTasks() {
     try {
       const endpoint = isAdminUser ? 'tasks' : 'tasks/my';
@@ -215,7 +225,7 @@ async function initTasks() {
     low:      { label:'Low',      color:'var(--priority-low)',      bg:'rgba(0,230,118,0.1)'  },
     medium:   { label:'Medium',   color:'var(--priority-medium)',   bg:'rgba(255,171,64,0.1)' },
     high:     { label:'High',     color:'var(--priority-high)',     bg:'rgba(255,110,64,0.1)' },
-    critical: { label:'Critical', color:'var(--priority-critical)', bg:'rgba(255,82,82,0.12)' },
+    critical: { label:'Critical', color:'var(--priority-critical)', bg:'rgba(255,82,82,0.15)' },
   };
 
   const statusConfig = {
@@ -224,20 +234,21 @@ async function initTasks() {
     under_review: { label:'Under Review', color:'var(--accent-secondary)', bg:'rgba(124,92,255,0.1)' },
     completed:    { label:'Completed',    color:'var(--success)', bg:'rgba(0,230,118,0.1)'  },
   };
+
   function renderListView(tasks) {
     const container = document.getElementById('tasksContainer');
     if (!container) return;
 
     if (!tasks || tasks.length === 0) {
-      container.innerHTML = `
-        <div class="card"><div class="card-body">
+      container.innerHTML = \`
+        <div class="card" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);"><div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon"><i data-lucide="check-square" style="width:28px;height:28px"></i></div>
-            <div class="empty-state-title">No tasks found</div>
-            <div class="empty-state-description">${isAdminUser ? 'Create the first task.' : 'No tasks assigned to you yet.'}</div>
+            <div class="empty-state-icon" style="background: rgba(255,255,255,0.05); color: var(--text-muted);"><i data-lucide="check-square" style="width:32px;height:32px"></i></div>
+            <div class="empty-state-title" style="font-size: 1.2rem; margin-top: 16px;">No tasks found</div>
+            <div class="empty-state-description" style="color: var(--text-muted); margin-top: 8px;">\${isAdminUser ? 'Create a task to get started.' : 'You have no assigned tasks right now.'}</div>
           </div>
         </div></div>
-      `;
+      \`;
       if (window.lucide) lucide.createIcons();
       return;
     }
@@ -260,118 +271,122 @@ async function initTasks() {
         }
       });
 
-      container.innerHTML = `
-        <div class="card" style="overflow-x:auto">
-          <table class="table" style="width:100%;text-align:left;border-collapse:collapse;min-width:600px">
+      container.innerHTML = \`
+        <div class="card" style="overflow-x:auto; background: rgba(20,24,45,0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+          <table class="table" style="width:100%;text-align:left;border-collapse:collapse;min-width:700px">
             <thead>
-              <tr style="border-bottom:1px solid var(--border-color);background:rgba(255,255,255,0.02)">
-                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Student</th>
-                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Task Name</th>
-                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Priority</th>
-                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Status</th>
-                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Deadline</th>
-                <th style="padding:12px;font-weight:600;font-size:0.85rem;color:var(--text-muted)">Actions</th>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">
+                <th style="padding:16px;font-weight:600;font-size:0.85rem;color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">Assignee</th>
+                <th style="padding:16px;font-weight:600;font-size:0.85rem;color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">Task Title</th>
+                <th style="padding:16px;font-weight:600;font-size:0.85rem;color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">Priority</th>
+                <th style="padding:16px;font-weight:600;font-size:0.85rem;color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">Status</th>
+                <th style="padding:16px;font-weight:600;font-size:0.85rem;color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em;">Due Date</th>
+                <th style="padding:16px;font-weight:600;font-size:0.85rem;color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; text-align:right;">Actions</th>
               </tr>
             </thead>
             <tbody>
-              ${assignments.map(item => {
+              \${assignments.map(item => {
                 const task = item.task;
                 const student = item.student;
                 const pri = priorityConfig[task.priority] || priorityConfig.medium;
                 const st = statusConfig[student ? student.status : task.status] || statusConfig.assigned;
                 const isOverdue = task.deadline && new Date(task.deadline) < new Date() && (student ? student.status !== 'completed' : task.status !== 'completed');
                 
-                return `
-                  <tr style="border-bottom:1px solid var(--border-color);transition:background 0.2s">
-                    <td style="padding:12px;vertical-align:middle">
-                      ${student ? `
-                        <div style="display:flex;align-items:center;gap:8px">
-                          <div style="width:28px;height:28px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:var(--text-primary)">
-                            ${student.name.charAt(0).toUpperCase()}
+                return \`
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.03); transition: background 0.3s;" class="hover-bg-glass">
+                    <td style="padding:16px;vertical-align:middle">
+                      \${student ? \`
+                        <div style="display:flex;align-items:center;gap:12px">
+                          <div style="width:32px;height:32px;border-radius:50%;background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1); display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;color:var(--text-primary); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                            \${student.name.charAt(0).toUpperCase()}
                           </div>
-                          <span style="font-weight:500">${student.name}</span>
+                          <span style="font-weight:600; font-size: 0.95rem;">\${student.name}</span>
                         </div>
-                      ` : '<span style="color:var(--text-muted);font-style:italic">Unassigned</span>'}
+                      \` : '<span style="color:var(--text-muted);font-style:italic; padding: 4px 10px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 0.8rem;">Unassigned</span>'}
                     </td>
-                    <td style="padding:12px;vertical-align:middle;cursor:pointer" onclick="viewTask(${task.id})">
-                      <div style="font-weight:500;color:var(--text-primary);margin-bottom:4px;display:inline-block">${task.title}</div>
-                      ${task.category ? `<span class="badge badge-info" style="font-size:0.65rem;margin-left:8px">${task.category}</span>` : ''}
+                    <td style="padding:16px;vertical-align:middle;cursor:pointer" onclick="viewTask(\${task.id})">
+                      <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px; font-size: 1rem;">\${task.title}</div>
+                      \${task.category ? \`<span class="badge badge-info" style="font-size:0.7rem; padding: 2px 8px; border-radius: 12px; background: rgba(79,143,255,0.1); color: var(--info); border: 1px solid rgba(79,143,255,0.2);">\${task.category}</span>\` : ''}
                     </td>
-                    <td style="padding:12px;vertical-align:middle">
-                      <span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>
+                    <td style="padding:16px;vertical-align:middle">
+                      <span style="padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase; border: 1px solid \${pri.color}33; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">\${pri.label}</span>
                     </td>
-                    <td style="padding:12px;vertical-align:middle">
-                      ${student ? `
-                      <select class="form-select btn-sm" style="width:auto;padding:3px 24px 3px 8px;font-size:0.7rem;border-radius:20px;background:${st.bg};color:${st.color};border:1px solid ${st.color}33;font-weight:600" onchange="updateTaskStatus(${task.id}, this.value, ${student.id})">
-                        <option value="assigned" ${student.status === 'assigned' ? 'selected' : ''}>Assigned</option>
-                        <option value="in_progress" ${student.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="under_review" ${student.status === 'under_review' ? 'selected' : ''}>Under Review</option>
-                        <option value="completed" ${student.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    <td style="padding:16px;vertical-align:middle">
+                      \${student ? \`
+                      <select class="form-select btn-sm" style="width:auto;padding:6px 28px 6px 12px;font-size:0.8rem;border-radius:20px;background:\${st.bg};color:\${st.color};border:1px solid \${st.color}44;font-weight:600; cursor: pointer; transition: all 0.2s;" onchange="updateTaskStatus(\${task.id}, this.value, \${student.id})" onmouseover="this.style.boxShadow='0 2px 8px \${st.color}33'" onmouseout="this.style.boxShadow='none'">
+                        <option value="assigned" \${student.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                        <option value="in_progress" \${student.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="under_review" \${student.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+                        <option value="completed" \${student.status === 'completed' ? 'selected' : ''}>Completed</option>
                       </select>
-                      ` : `<span style="padding:3px 8px;border-radius:20px;font-size:0.7rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>`}
+                      \` : \`<span style="padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;background:\${st.bg};color:\${st.color}; border: 1px solid \${st.color}44;">\${st.label}</span>\`}
                     </td>
-                    <td style="padding:12px;vertical-align:middle">
-                      ${task.deadline ? `<span style="font-size:0.8rem;color:${isOverdue ? 'var(--error)' : 'var(--text-muted)'}">${new Date(task.deadline).toLocaleDateString()}</span>` : '-'}
+                    <td style="padding:16px;vertical-align:middle">
+                      \${task.deadline ? \`<span style="font-size:0.85rem; font-weight: 500; color:\${isOverdue ? 'var(--error)' : 'var(--text-secondary)'}; background: \${isOverdue ? 'rgba(255,82,82,0.1)' : 'rgba(255,255,255,0.03)'}; padding: 4px 8px; border-radius: 6px;">\${new Date(task.deadline).toLocaleDateString()}</span>\` : '<span style="color:var(--text-muted)">-</span>'}
                     </td>
-                    <td style="padding:12px;vertical-align:middle">
-                      <div style="display:flex;gap:4px">
-                        <button class="btn btn-ghost btn-sm" onclick="editTask(${task.id})" title="Edit Task">
-                          <i data-lucide="pencil" style="width:14px;height:14px"></i>
+                    <td style="padding:16px;vertical-align:middle; text-align: right;">
+                      <div style="display:flex;gap:8px; justify-content: flex-end;">
+                        <button class="btn btn-ghost btn-sm" onclick="editTask(\${task.id})" title="Edit Task" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
+                          <i data-lucide="pencil" style="width:16px;height:16px; color: var(--text-secondary);"></i>
                         </button>
-                        <button class="btn btn-ghost btn-sm" onclick="deleteTask(${task.id})" style="color:var(--error)" title="Delete Task">
-                          <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-                        </button>
+                        \${student ? \`
+                          <button class="btn btn-ghost btn-sm" onclick="removeAssignment(\${task.id}, \${student.id})" title="Unassign Student" style="background: rgba(255,82,82,0.1); border-radius: 8px;">
+                            <i data-lucide="user-minus" style="width:16px;height:16px; color: var(--error);"></i>
+                          </button>
+                        \` : ''}
                       </div>
                     </td>
                   </tr>
-                `;
+                \`;
               }).join('')}
             </tbody>
           </table>
         </div>
-      `;
+      \`;
     } else {
-      container.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:var(--space-md)">
-          ${tasks.map(task => {
+      // Student View List
+      container.innerHTML = \`
+        <div style="display:flex;flex-direction:column;gap:var(--space-lg)">
+          \${tasks.map(task => {
             const pri = priorityConfig[task.priority] || priorityConfig.medium;
             const st = statusConfig[task.status] || statusConfig.assigned;
             const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
 
-            return `
-              <div class="card" style="border-left:3px solid ${pri.color};transition:all 0.2s;cursor:pointer" onclick="viewTask(${task.id})">
-                <div class="card-body" style="padding:var(--space-lg)">
-                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-md)">
-                    <div style="flex:1">
-                      <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:8px">
-                        <span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase;letter-spacing:0.04em">${pri.label}</span>
-                        <span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>
-                        ${task.category ? `<span class="badge badge-info">${task.category}</span>` : ''}
-                        ${isOverdue ? `<span class="badge badge-error">Overdue</span>` : ''}
+            return \`
+              <div class="card hover-glow" style="background: rgba(20,24,45,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid \${pri.color}; border-radius: var(--border-radius-lg); transition: all 0.3s; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" onclick="viewTask(\${task.id})">
+                <div class="card-body" style="padding:var(--space-xl)">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-lg); flex-wrap: wrap;">
+                    <div style="flex:1; min-width: 250px;">
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+                        <span style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase;letter-spacing:0.05em; border: 1px solid \${pri.color}33;">\${pri.label} Priority</span>
+                        \${task.category ? \`<span style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;background:rgba(79,143,255,0.1);color:var(--info); border: 1px solid rgba(79,143,255,0.2);">\${task.category}</span>\` : ''}
+                        \${isOverdue ? \`<span style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;background:rgba(255,82,82,0.15);color:var(--error); border: 1px solid rgba(255,82,82,0.3); animation: pulse 2s infinite;">Overdue</span>\` : ''}
                       </div>
-                      <h4 style="margin:0 0 8px;font-size:0.9375rem">${task.title}</h4>
-                      ${task.description ? `<p style="color:var(--text-muted);font-size:0.85rem;margin:0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${task.description}</p>` : ''}
-                      <div style="display:flex;align-items:center;gap:var(--space-lg);margin-top:var(--space-sm)">
-                        ${task.deadline ? `<span style="font-size:0.8rem;color:${isOverdue ? 'var(--error)' : 'var(--text-muted)'}"><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>${new Date(task.deadline).toLocaleDateString()}</span>` : ''}
+                      <h4 style="margin:0 0 12px;font-size:1.25rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;">\${task.title}</h4>
+                      \${task.description ? \`<p style="color:var(--text-secondary);font-size:0.95rem;margin:0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">\${task.description}</p>\` : ''}
+                      <div style="display:flex;align-items:center;gap:var(--space-xl);margin-top:20px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+                        \${task.deadline ? \`<span style="font-size:0.85rem; font-weight: 500; color:\${isOverdue ? 'var(--error)' : 'var(--text-secondary)'}; display: flex; align-items: center;"><i data-lucide="calendar" style="width:16px;height:16px;margin-right:6px;"></i> Due \${new Date(task.deadline).toLocaleDateString()}</span>\` : ''}
+                        \${task.assigned_by_name ? \`<span style="font-size:0.85rem; font-weight: 500; color:var(--text-secondary); display: flex; align-items: center;"><i data-lucide="user" style="width:16px;height:16px;margin-right:6px;"></i> From \${task.assigned_by_name}</span>\` : ''}
                       </div>
                     </div>
-                    <div style="display:flex;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
-                      ${task.status !== 'completed' ? `
-                      <select class="form-select btn-sm" style="width:auto;padding:5px 28px 5px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
-                        <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
-                        <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
-                        <option value="completed">Submit for Review</option>
+                    <div style="display:flex; flex-direction: column; align-items: flex-end; gap: 12px;" onclick="event.stopPropagation()">
+                       <span style="padding:6px 16px;border-radius:20px;font-size:0.85rem;font-weight:600;background:\${st.bg};color:\${st.color}; border: 1px solid \${st.color}44;">\${st.label}</span>
+                      \${task.status !== 'completed' ? \`
+                      <select class="form-select btn-sm" style="width:auto;padding:8px 32px 8px 16px;font-size:0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(\${task.id}, this.value)">
+                        <option value="assigned" \${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                        <option value="in_progress" \${task.status === 'in_progress' ? 'selected' : ''}>Mark In Progress</option>
+                        <option value="under_review" \${task.status === 'under_review' ? 'selected' : ''}>Submit for Review</option>
+                        <option value="completed">Complete Task</option>
                       </select>
-                      ` : ''}
+                      \` : ''}
                     </div>
                   </div>
                 </div>
               </div>
-            `;
+            \`;
           }).join('')}
         </div>
-      `;
+      \`;
     }
     if (window.lucide) lucide.createIcons();
   }
@@ -387,47 +402,67 @@ async function initTasks() {
       { key: 'completed', label: 'Completed', color: 'var(--success)' },
     ];
 
-    container.innerHTML = `
-      <div class="grid grid-stats" style="overflow-x:auto;min-width:800px">
-        ${columns.map(col => {
-          const colTasks = tasks.filter(t => t.status === col.key);
-          return `
-            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:var(--border-radius);padding:var(--space-md)">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-md);padding-bottom:var(--space-md);border-bottom:1px solid var(--border-color)">
-                <div style="width:8px;height:8px;border-radius:50%;background:${col.color}"></div>
-                <span style="font-weight:600;font-size:0.875rem;color:var(--text-primary)">${col.label}</span>
-                <span style="margin-left:auto;background:rgba(255,255,255,0.08);color:var(--text-muted);border-radius:20px;padding:2px 8px;font-size:0.75rem;font-weight:600">${colTasks.length}</span>
+    container.innerHTML = \`
+      <div class="grid grid-stats" style="overflow-x:auto;min-width:900px; gap: 24px;">
+        \${columns.map(col => {
+          let colTasks = [];
+          if(isAdminUser) {
+             // Extract assignments that match this status
+             tasks.forEach(task => {
+                if(task.assignees && task.assignees.length > 0) {
+                   task.assignees.forEach(a => {
+                      if(a.status === col.key) colTasks.push({task, student: a});
+                   });
+                } else if (task.status === col.key) {
+                   colTasks.push({task, student: null});
+                }
+             });
+          } else {
+             colTasks = tasks.filter(t => t.status === col.key).map(task => ({task, student: null}));
+          }
+
+          return \`
+            <div style="background:rgba(20,24,45,0.6); backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,0.05); border-top: 3px solid \${col.color}; border-radius:var(--border-radius-lg); padding:var(--space-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; max-height: 70vh; overflow-y: auto;" class="custom-scroll">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:var(--space-lg);padding-bottom:var(--space-md);border-bottom:1px solid rgba(255,255,255,0.05)">
+                <span style="font-weight:700;font-size:1.05rem;color:var(--text-primary); letter-spacing: 0.02em;">\${col.label}</span>
+                <span style="margin-left:auto;background:rgba(255,255,255,0.08);color:var(--text-primary);border-radius:20px;padding:2px 10px;font-size:0.8rem;font-weight:700; border: 1px solid rgba(255,255,255,0.1);">\${colTasks.length}</span>
               </div>
-              <div class="grid grid-2" style="gap:var(--space-md)">
-                ${colTasks.length === 0 ? `<div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:var(--space-lg) 0">No tasks</div>` : ''}
-                ${colTasks.map(task => {
+              <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                \${colTasks.length === 0 ? \`<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:var(--space-xl) 0; font-style: italic; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.05);">No tasks</div>\` : ''}
+                \${colTasks.map(item => {
+                  const task = item.task;
+                  const student = item.student;
                   const pri = priorityConfig[task.priority] || priorityConfig.medium;
-                  return `
-                    <div class="card" style="border:1px solid var(--border-color);cursor:pointer;padding:var(--space-md)" onclick="viewTask(${task.id})">
-                      <div style="margin-bottom:6px">
-                        <span style="padding:2px 8px;border-radius:20px;font-size:0.68rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>
+                  return \`
+                    <div class="card hover-glow" style="background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-left: 3px solid \${pri.color}; cursor:pointer; padding:var(--space-md); border-radius: var(--border-radius); transition: transform 0.2s, box-shadow 0.2s;" onclick="viewTask(\${task.id})" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+                      <div style="margin-bottom:10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="padding:3px 8px;border-radius:12px;font-size:0.65rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase; border: 1px solid \${pri.color}33;">\${pri.label}</span>
+                        \${task.category ? \`<span style="font-size: 0.7rem; color: var(--text-muted);">\${task.category}</span>\` : ''}
                       </div>
-                      <div style="font-size:0.85rem;font-weight:500;color:var(--text-primary);margin-bottom:4px;line-height:1.4">${task.title}</div>
-                      ${task.deadline ? `<div style="font-size:0.75rem;color:var(--text-muted)">${new Date(task.deadline).toLocaleDateString()}</div>` : ''}
-                      ${task.assignees && task.assignees.length > 0 ? `
-                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">
-                          ${task.assignees.map(a => {
-                            const ast = statusConfig[a.status] || statusConfig.assigned;
-                            return `<div style="font-size:0.7rem;padding:2px 6px;border-radius:12px;background:${ast.bg};color:${ast.color};display:flex;align-items:center;gap:4px;border:1px solid ${ast.color}33" title="${a.name} - ${ast.label}">
-                              ${a.name ? a.name.charAt(0).toUpperCase() : '?'}
-                            </div>`;
-                          }).join('')}
-                        </div>
-                      ` : ''}
+                      <div style="font-size:0.95rem;font-weight:600;color:var(--text-primary);margin-bottom:8px;line-height:1.4;">\${task.title}</div>
+                      \${task.deadline ? \`<div style="font-size:0.75rem;color:var(--text-secondary); margin-bottom: 10px; display: flex; align-items: center;"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i>\${new Date(task.deadline).toLocaleDateString()}</div>\` : ''}
+                      
+                      \${student ? \`
+                         <div style="display:flex;align-items:center;gap:8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; margin-top: 8px;">
+                           <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:var(--text-primary);">\${student.name.charAt(0).toUpperCase()}</div>
+                           <span style="font-size:0.75rem; color: var(--text-secondary);">\${student.name}</span>
+                         </div>
+                      \` : \`
+                         \${task.assignees && task.assignees.length > 0 ? \`
+                           <div style="display:flex;gap:4px;flex-wrap:wrap;border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; margin-top: 8px;">
+                             \${task.assignees.map(a => \`<div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:var(--text-primary);" title="\${a.name}">\${a.name.charAt(0).toUpperCase()}</div>\`).join('')}
+                           </div>
+                         \` : ''}
+                      \`}
                     </div>
-                  `;
+                  \`;
                 }).join('')}
               </div>
             </div>
-          `;
+          \`;
         }).join('')}
       </div>
-    `;
+    \`;
     if (window.lucide) lucide.createIcons();
   }
 
@@ -443,8 +478,6 @@ async function initTasks() {
       let matchStatus = !statusFilter || t.status === statusFilter;
       
       if (isAdminUser && statusFilter && t.assignees) {
-        // For admin, a task matches if ANY of its assignees matches the status,
-        // or the task itself matches the status
         matchStatus = matchStatus || t.assignees.some(a => a.status === statusFilter);
       }
       
@@ -466,14 +499,18 @@ async function initTasks() {
   // View toggles
   document.getElementById('taskViewList')?.addEventListener('click', () => {
     viewMode = 'list';
-    document.getElementById('taskViewList').style.borderColor = 'var(--accent-primary)';
-    document.getElementById('taskViewKanban').style.borderColor = '';
+    document.getElementById('taskViewList').style.background = 'rgba(255,255,255,0.1)';
+    document.getElementById('taskViewList').style.color = 'var(--text-primary)';
+    document.getElementById('taskViewKanban').style.background = 'transparent';
+    document.getElementById('taskViewKanban').style.color = 'var(--text-muted)';
     applyFilters();
   });
   document.getElementById('taskViewKanban')?.addEventListener('click', () => {
     viewMode = 'kanban';
-    document.getElementById('taskViewKanban').style.borderColor = 'var(--accent-primary)';
-    document.getElementById('taskViewList').style.borderColor = '';
+    document.getElementById('taskViewKanban').style.background = 'rgba(255,255,255,0.1)';
+    document.getElementById('taskViewKanban').style.color = 'var(--text-primary)';
+    document.getElementById('taskViewList').style.background = 'transparent';
+    document.getElementById('taskViewList').style.color = 'var(--text-muted)';
     applyFilters();
   });
 
@@ -487,6 +524,19 @@ async function initTasks() {
     document.getElementById('taskCategory').value = task?.category || '';
     document.getElementById('taskDeadline').value = task?.deadline || '';
     document.getElementById('taskSubmitText').textContent = task ? 'Update Task' : 'Create Task';
+    
+    // Clear select
+    const sel = document.getElementById('taskAssignee');
+    if(sel) {
+      Array.from(sel.options).forEach(opt => opt.selected = false);
+      if (task && task.assignees) {
+         task.assignees.forEach(a => {
+            const opt = Array.from(sel.options).find(o => parseInt(o.value) === a.id);
+            if(opt) opt.selected = true;
+         });
+      }
+    }
+    
     overlay.style.display = 'flex';
   }
   function closeModal() { overlay.style.display = 'none'; editingTaskId = null; }
@@ -500,66 +550,86 @@ async function initTasks() {
   const viewOverlay = document.getElementById('viewTaskModalOverlay');
   function openViewModal(task) {
     document.getElementById('viewTaskTitle').textContent = task.title;
-    document.getElementById('viewTaskDesc').textContent = task.description || 'No description provided.';
+    document.getElementById('viewTaskDesc').textContent = task.description || 'No detailed description provided for this task.';
     
     const pri = priorityConfig[task.priority] || priorityConfig.medium;
     const st = statusConfig[task.status] || statusConfig.assigned;
     
-    let badgesHtml = `<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase">${pri.label}</span>`;
+    let badgesHtml = \`<span style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;background:\${pri.bg};color:\${pri.color};text-transform:uppercase; border: 1px solid \${pri.color}33;">\${pri.label}</span>\`;
     if (!isAdminUser) {
-      badgesHtml += `<span style="padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>`;
+      badgesHtml += \`<span style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;background:\${st.bg};color:\${st.color}; border: 1px solid \${st.color}33;">\${st.label}</span>\`;
     }
     if (task.category) {
-      badgesHtml += `<span class="badge badge-info">${task.category}</span>`;
+      badgesHtml += \`<span class="badge badge-info" style="font-size:0.75rem; padding: 4px 12px; border-radius: 20px; background: rgba(79,143,255,0.1); color: var(--info); border: 1px solid rgba(79,143,255,0.2);">\${task.category}</span>\`;
     }
     document.getElementById('viewTaskBadges').innerHTML = badgesHtml;
     
-    document.getElementById('viewTaskDeadline').textContent = task.deadline ? new Date(task.deadline).toLocaleDateString() : '-';
+    document.getElementById('viewTaskDeadline').innerHTML = task.deadline ? \`<i data-lucide="calendar" style="width:16px;height:16px;color:var(--text-muted)"></i> \${new Date(task.deadline).toLocaleDateString()}\` : '-';
     document.getElementById('viewTaskCategory').textContent = task.category || '-';
-    document.getElementById('viewTaskAssignedBy').textContent = task.assigned_by_name || '-';
+    document.getElementById('viewTaskAssignedBy').innerHTML = \`<i data-lucide="user" style="width:16px;height:16px;color:var(--text-muted)"></i> \${task.assigned_by_name || '-'}\`;
     
+    document.getElementById('viewTaskStatus').innerHTML = \`
+      <span style="padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;background:\${st.bg};color:\${st.color}; border: 1px solid \${st.color}33;">\${st.label}</span>
+    \`;
+
+    const leftActions = document.getElementById('viewTaskActionsLeft');
+    const rightActions = document.getElementById('viewTaskActionsRight');
+    leftActions.innerHTML = '';
+    rightActions.innerHTML = '';
+
     if (isAdminUser) {
-      document.getElementById('viewTaskStatus').innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px">
-          ${st.label}
-          <button class="btn btn-ghost btn-sm" onclick="deleteTask(${task.id})" style="color:var(--error);margin-left:auto" title="Delete Task">
-            <i data-lucide="trash-2" style="width:14px;height:14px;margin-right:4px"></i> Delete
-          </button>
-        </div>
-      `;
+      leftActions.innerHTML = \`
+        <button class="btn btn-ghost" onclick="deleteTask(\${task.id})" style="color:var(--error); background: rgba(255,82,82,0.1); border-radius: 8px; font-weight: 600;" title="Delete Entire Task">
+          <i data-lucide="trash-2" style="width:16px;height:16px;margin-right:6px"></i> Delete Task
+        </button>
+      \`;
+      rightActions.innerHTML = \`
+         <button class="btn btn-primary" onclick="editTask(\${task.id})" style="font-weight: 600;">
+          <i data-lucide="pencil" style="width:16px;height:16px;margin-right:6px"></i> Edit Details
+        </button>
+      \`;
+
       const assigneesContainer = document.getElementById('viewTaskAssigneesContainer');
       const assigneesDiv = document.getElementById('viewTaskAssignees');
       if (task.assignees && task.assignees.length > 0) {
         assigneesDiv.innerHTML = task.assignees.map(a => {
           const ast = statusConfig[a.status] || statusConfig.assigned;
-          return `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-color)">
-            <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:600">${a.name.charAt(0).toUpperCase()}</div>
-            <span style="font-size:0.75rem;font-weight:500">${a.name}</span>
-            <select class="form-select btn-sm" style="width:auto;padding:2px 24px 2px 8px;font-size:0.65rem;border:none;background:transparent;color:${ast.color}" onchange="updateTaskStatus(${task.id}, this.value, ${a.id})">
-              <option value="assigned" ${a.status === 'assigned' ? 'selected' : ''}>Assigned</option>
-              <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-              <option value="under_review" ${a.status === 'under_review' ? 'selected' : ''}>Under Review</option>
-              <option value="completed" ${a.status === 'completed' ? 'selected' : ''}>Completed</option>
+          return \`<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--border-radius);background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05); transition: background 0.2s;" class="hover-bg-glass">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1); display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700; color: var(--text-primary);">\${a.name.charAt(0).toUpperCase()}</div>
+            <span style="font-size:0.95rem;font-weight:600; flex: 1;">\${a.name}</span>
+            <select class="form-select btn-sm" style="width:auto;padding:6px 28px 6px 12px;font-size:0.8rem;border:1px solid \${ast.color}44;background:\${ast.bg};color:\${ast.color}; border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(\${task.id}, this.value, \${a.id})">
+              <option value="assigned" \${a.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+              <option value="in_progress" \${a.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+              <option value="under_review" \${a.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+              <option value="completed" \${a.status === 'completed' ? 'selected' : ''}>Completed</option>
             </select>
-          </div>`;
+            <button class="btn btn-ghost btn-sm" onclick="removeAssignment(\${task.id}, \${a.id})" title="Remove Assignment" style="color: var(--error); background: rgba(255,82,82,0.1); border-radius: 8px; padding: 6px;">
+               <i data-lucide="user-minus" style="width: 16px; height: 16px;"></i>
+            </button>
+          </div>\`;
         }).join('');
         assigneesContainer.style.display = 'block';
       } else {
         assigneesContainer.style.display = 'none';
       }
     } else {
-      // Student view: show status with change dropdown (locked only when admin-approved 'completed')
+      document.getElementById('viewTaskStatusContainer').style.display = 'none';
+      
+      // Student view actions
       if (task.status !== 'completed') {
-        document.getElementById('viewTaskStatus').innerHTML = `
-          <select class="form-select btn-sm" style="width:auto;padding:4px 28px 4px 10px;font-size:0.8rem" onchange="updateTaskStatus(${task.id}, this.value)">
-            <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
-            <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-            <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Under Review</option>
-            <option value="completed">Submit for Review</option>
+         rightActions.innerHTML = \`
+          <select class="form-select" style="padding:10px 36px 10px 16px;font-size:0.95rem; background: var(--accent-primary); color: #fff; border: none; border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(\${task.id}, this.value)">
+            <option value="assigned" \${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+            <option value="in_progress" \${task.status === 'in_progress' ? 'selected' : ''}>Mark In Progress</option>
+            <option value="under_review" \${task.status === 'under_review' ? 'selected' : ''}>Submit for Review</option>
           </select>
-        `;
+        \`;
       } else {
-        document.getElementById('viewTaskStatus').innerHTML = `<span style="padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${st.bg};color:${st.color}">${st.label}</span>`;
+         rightActions.innerHTML = \`
+           <div style="padding: 10px 20px; background: \${st.bg}; color: \${st.color}; border: 1px solid \${st.color}44; border-radius: 8px; font-weight: 600; display: flex; align-items: center;">
+             <i data-lucide="check-circle" style="width: 18px; height: 18px; margin-right: 8px;"></i> Task Completed
+           </div>
+         \`;
       }
       document.getElementById('viewTaskAssigneesContainer').style.display = 'none';
     }
@@ -577,7 +647,8 @@ async function initTasks() {
   };
 
   // Submit
-  document.getElementById('taskSubmitBtn')?.addEventListener('click', async () => {
+  document.getElementById('taskSubmitBtn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
     const title = document.getElementById('taskTitle').value.trim();
     if (!title) { showToast({ message: 'Task title is required', type: 'warning' }); return; }
 
@@ -600,11 +671,11 @@ async function initTasks() {
 
     try {
       if (editingTaskId) {
-        await api.put(`tasks/${editingTaskId}`, payload);
-        showToast({ message: 'Task updated!', type: 'success' });
+        await api.put(\`tasks/\${editingTaskId}\`, payload);
+        showToast({ message: 'Task updated gracefully!', type: 'success' });
       } else {
         await api.post('tasks', payload);
-        showToast({ message: 'Task created!', type: 'success' });
+        showToast({ message: 'Task created and assigned!', type: 'success' });
       }
       closeModal();
       await loadTasks();
@@ -619,17 +690,39 @@ async function initTasks() {
   // Globals
   window.editTask = (id) => {
     const task = allTasks.find(t => t.id === id);
-    if (task) openModal(task);
+    if (task) {
+       closeViewModal();
+       openModal(task);
+    }
   };
 
   window.deleteTask = async (id) => {
-    if (!confirm('Delete this task?')) return;
+    if (!confirm('Are you sure you want to delete this entire task? This will remove it for all assigned students.')) return;
     try {
-      await api.delete(`tasks/${id}`);
-      showToast({ message: 'Task deleted', type: 'success' });
+      await api.delete(\`tasks/\${id}\`);
+      showToast({ message: 'Task deleted successfully', type: 'success' });
+      closeViewModal();
       await loadTasks();
     } catch(err) {
-      showToast({ message: err.message || 'Failed to delete', type: 'error' });
+      showToast({ message: err.message || 'Failed to delete task', type: 'error' });
+    }
+  };
+  
+  window.removeAssignment = async (taskId, studentId) => {
+    if (!confirm('Remove this task assignment for this student?')) return;
+    try {
+      await api.delete(\`tasks/\${taskId}/assignments/\${studentId}\`);
+      showToast({ message: 'Student assignment removed', type: 'success' });
+      await loadTasks();
+      
+      const viewOverlay = document.getElementById('viewTaskModalOverlay');
+      if (viewOverlay && viewOverlay.style.display !== 'none') {
+        const task = allTasks.find(t => t.id === taskId);
+        if (task) openViewModal(task);
+        else closeViewModal(); // if task deleted somehow, close it
+      }
+    } catch(err) {
+      showToast({ message: err.message || 'Failed to remove assignment', type: 'error' });
     }
   };
 
@@ -638,18 +731,17 @@ async function initTasks() {
       const payload = { status };
       if (userId && isAdminUser) payload.user_id = userId;
 
-      await api.put(`tasks/${id}/status`, payload);
-      showToast({ message: 'Status updated!', type: 'success' });
-      await loadTasks(); // reload from server to get accurate assignment state
+      await api.put(\`tasks/\${id}/status\`, payload);
+      showToast({ message: 'Status updated seamlessly!', type: 'success' });
+      await loadTasks(); 
       
-      // If modal is open, re-render it
       const viewOverlay = document.getElementById('viewTaskModalOverlay');
       if (viewOverlay && viewOverlay.style.display !== 'none') {
         const task = allTasks.find(t => t.id === id);
         if (task) openViewModal(task);
       }
     } catch(err) {
-      showToast({ message: err.message || 'Failed to update', type: 'error' });
+      showToast({ message: err.message || 'Failed to update status', type: 'error' });
     }
   };
 

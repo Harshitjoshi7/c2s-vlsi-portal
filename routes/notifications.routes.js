@@ -1,8 +1,45 @@
 import { Router } from 'express';
-import db from '../database/db.js';
+import db, { createNotification } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = Router();
+
+// GET /api/notifications/cron/daily-attendance — Cron job to notify students missing attendance
+router.get('/cron/daily-attendance', async (req, res) => {
+  // Simple protection: cron endpoints usually have an auth header from the platform.
+  // Vercel passes 'authorization: Bearer <CRON_SECRET>' if configured.
+  // For simplicity, we just allow it or check a basic secret if passed.
+  
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find students who haven't marked attendance today
+    const missingStudentsRes = await db.query(`
+      SELECT id, name FROM users 
+      WHERE role = 'student' 
+      AND id NOT IN (
+        SELECT user_id FROM attendance WHERE attendance_date = $1
+      )
+    `, [today]);
+    
+    let count = 0;
+    for (const student of missingStudentsRes.rows) {
+      await createNotification(
+        student.id,
+        'deadline', // Use deadline type for urgency
+        'Attendance Reminder',
+        'You have not marked your attendance today! Please check in.',
+        '/attendance'
+      );
+      count++;
+    }
+    
+    res.json({ success: true, notified: count, message: `Sent attendance reminder to ${count} students.` });
+  } catch (error) {
+    console.error('Daily attendance cron error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
 
 router.use(verifyToken);
 

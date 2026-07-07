@@ -21,6 +21,7 @@ function renderReports() {
               <option value="students">Export Students</option>
               <option value="attendance">Export Attendance</option>
               <option value="tasks">Export Tasks</option>
+              <option value="projects">Export Projects</option>
               <option value="logs">Export Daily Logs</option>
             </select>
             <i data-lucide="download" style="position:absolute;right:10px;top:10px;width:16px;height:16px;pointer-events:none;color:var(--text-muted)"></i>
@@ -167,8 +168,8 @@ async function initReports() {
       api.get('projects').catch(() => []),
       api.get('tasks').catch(() => []),
       api.get('attendance').catch(() => []),
-      api.get('tickets').catch(() => []),
       api.get('users').catch(() => []),
+      api.get('public/projects').catch(() => []) // fetch project members data via public endpoint or an admin endpoint if exists
     ]);
 
     const val = r => r.status === 'fulfilled' ? (Array.isArray(r.value) ? r.value : (r.value?.data || [])) : [];
@@ -178,6 +179,10 @@ async function initReports() {
     const tasksData = val(tasks);
     const attendanceData = val(attendance);
     const ticketsData = val(tickets);
+    
+    // We will use projectsData for members calculation, assuming it returns members
+    // Wait, the regular /api/projects endpoint in projects.routes.js does return members!
+    // So projectsData already contains .members array for each project.
     
     // Also fetch daily logs for full export
     const logsRes = await api.get('daily-logs').catch(() => []);
@@ -205,7 +210,13 @@ async function initReports() {
         avg_attendance_pct: avgAtt
       },
       students: studentsData.map(s => {
-        const sTasks = tasksData.filter(t => t.assigned_to === s.id && t.status === 'completed').length;
+        // Fix: Count task as completed ONLY if this specific student's assignment is completed
+        const stuTasks = tasksData.filter(t => t.assignees?.some(a => a.id === s.id));
+        const sTasksCompleted = stuTasks.filter(t => t.assignees?.some(a => a.id === s.id && a.status === 'completed')).length;
+        
+        // Count projects the student is part of
+        const sProjects = projectsData.filter(p => p.members?.some(m => m.id === s.id || m.user_id === s.id || m.name === s.name)).length;
+
         const sAtt = attendanceData.filter(a => a.user_id === s.id);
         const sPresent = sAtt.filter(a => a.status === 'present' || a.status === 'late').length;
         const sAttPct = sAtt.length > 0 ? Math.round((sPresent / sAtt.length) * 100) : 0;
@@ -213,7 +224,8 @@ async function initReports() {
           name: s.name,
           email: s.email,
           batch: s.batch,
-          tasks_completed: sTasks,
+          tasks_completed: sTasksCompleted,
+          projects_count: sProjects,
           attendance_pct: sAttPct,
           logs_count: logsData.filter(l => l.user_id === s.id).length,
           points: s.points || 0
@@ -432,14 +444,18 @@ async function initReports() {
     }
 
     const rows = students.map(s => {
-      const stuTasks = tasks.filter(t => t.assignees?.some(a => a.id === s.id || a === s.id));
-      const completedTasks = stuTasks.filter(t => t.status === 'completed').length;
+      const stuTasks = tasks.filter(t => t.assignees?.some(a => a.id === s.id));
+      const completedTasks = stuTasks.filter(t => t.assignees?.some(a => a.id === s.id && a.status === 'completed')).length;
+      
+      // Calculate projects for student
+      const stuProjects = currentReportData?.raw_projects?.filter(p => p.members?.some(m => m.id === s.id || m.user_id === s.id || m.name === s.name)).length || 0;
+
       const stuAtt = attendance.filter(a => a.user_id === s.id);
       const presentAtt = stuAtt.filter(a => a.status === 'present' || a.status === 'late').length;
       const attPct = stuAtt.length ? Math.round((presentAtt / stuAtt.length) * 100) : 0;
       const initials = s.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
-      return { student: s, completedTasks, totalTasks: stuTasks.length, attPct, initials };
+      return { student: s, completedTasks, totalTasks: stuTasks.length, stuProjects, attPct, initials };
     }).sort((a, b) => b.attPct - a.attPct);
 
     tableEl.innerHTML = `
@@ -450,6 +466,7 @@ async function initReports() {
               <th>Student</th>
               <th>Batch</th>
               <th>Tasks</th>
+              <th>Projects</th>
               <th>Attendance</th>
               <th>Rate</th>
             </tr>
@@ -470,6 +487,9 @@ async function initReports() {
                 <td>
                   <span style="color:var(--success);font-weight:600">${completedTasks}</span>
                   <span style="color:var(--text-muted)">/${totalTasks}</span>
+                </td>
+                <td style="font-weight:600; color:var(--text-primary)">
+                  ${stuProjects}
                 </td>
                 <td>
                   <div style="width:80px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
@@ -520,11 +540,25 @@ function exportToExcel(data, type = 'all') {
       'Email': s.email,
       'Batch': s.batch || 'N/A',
       'Tasks Completed': s.tasks_completed,
+      'Projects Count': s.projects_count,
       'Attendance %': s.attendance_pct,
       'Logs Submitted': s.logs_count,
       'Points': s.points
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentRows), 'Students');
+  }
+
+  if (type === 'all' || type === 'projects') {
+    const projRows = data.raw_projects.map(p => ({
+      'Project Name': p.name,
+      'Type': p.type || 'N/A',
+      'Status': p.status,
+      'Progress %': p.progress_percent,
+      'Members Count': p.members ? p.members.length : 0,
+      'Start Date': p.start_date || '',
+      'End Date': p.end_date || ''
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projRows), 'Projects');
   }
 
   if (type === 'all' || type === 'attendance') {

@@ -371,6 +371,50 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
+// DELETE /api/tasks/:id/assignments/:userId — remove assignment for one student (admin only)
+router.delete('/:id/assignments/:userId', authorize('admin'), async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    
+    // Check if assignment exists
+    const assignmentRes = await db.query(
+      'SELECT * FROM task_assignments WHERE task_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    
+    if (!assignmentRes.rows[0]) {
+      return res.status(404).json({ success: false, error: 'Assignment not found.' });
+    }
+    
+    await db.query('DELETE FROM task_assignments WHERE task_id = $1 AND user_id = $2', [id, userId]);
+    
+    // Optional: Check if it's the last assignment, if yes, we could delete the task or just leave it unassigned.
+    // We will just leave it unassigned.
+    
+    // Recalculate global status
+    const allAssignmentsRes = await db.query('SELECT status FROM task_assignments WHERE task_id = $1', [id]);
+    const allStatuses = allAssignmentsRes.rows.map(a => a.status);
+    
+    let newGlobalStatus = 'assigned';
+    if (allStatuses.length > 0) {
+      if (allStatuses.every(s => s === 'completed')) {
+        newGlobalStatus = 'completed';
+      } else if (allStatuses.some(s => s === 'under_review')) {
+        newGlobalStatus = 'under_review';
+      } else if (allStatuses.some(s => s === 'in_progress')) {
+        newGlobalStatus = 'in_progress';
+      }
+    }
+    
+    await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newGlobalStatus, id]);
+    
+    res.json({ success: true, data: { message: 'Assignment removed successfully.' } });
+  } catch (error) {
+    console.error('Delete assignment error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
 // DELETE /api/tasks/:id — delete task (admin only)
 router.delete('/:id', authorize('admin'), async (req, res) => {
   try {
