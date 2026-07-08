@@ -293,10 +293,16 @@ router.get('/date/:date', async (req, res) => {
   try {
     const { date } = req.params;
     const isAdminUser = req.user.role === 'admin';
+    const today = new Date().toISOString().split('T')[0];
 
     // Validate date format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    // Always initialize attendance for today if querying today or a past date
+    if (date <= today) {
+      await initializeDayAttendance(date);
     }
 
     if (isAdminUser) {
@@ -390,6 +396,9 @@ router.get('/', async (req, res) => {
 // GET /api/attendance/my — current student's attendance history
 router.get('/my', async (req, res) => {
   try {
+    const today = new Date().toISOString().split('T')[0];
+    await initializeDayAttendance(today);
+
     const result = await db.query(
       'SELECT * FROM attendance WHERE user_id = $1 ORDER BY attendance_date DESC',
       [req.user.id]

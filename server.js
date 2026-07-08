@@ -64,6 +64,29 @@ app.get('/api/clean-future', async (req, res) => {
   }
 });
 
+app.get('/api/migrate-pc', async (req, res) => {
+  try {
+    const db = (await import('./database/db.js')).default;
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS pc_usage_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        pc_id INTEGER NOT NULL REFERENCES pcs(id) ON DELETE CASCADE,
+        usage_date DATE NOT NULL,
+        status TEXT CHECK(status IN ('on', 'off')) DEFAULT 'off',
+        tool_used TEXT,
+        turned_on_at TIMESTAMP,
+        turned_off_at TIMESTAMP,
+        total_minutes_on INTEGER DEFAULT 0,
+        UNIQUE(user_id, pc_id, usage_date)
+      );
+    `);
+    res.json({ success: true, message: 'pc_usage_logs created' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Public Project API (For QR code scanning, unauthenticated)
 import db from './database/db.js';
 
