@@ -242,8 +242,19 @@ c2s-vlsi-portal/
 
 #### Admin Mark Attendance
 1. `POST /api/attendance` → accepts `user_id`, `attendance_date`, `status`.
-2. Also calls `initializeDayAttendance(date)` first.
-3. Upserts the specific student's record.
+
+### 3. Attendance System & Leave Logic
+- **Attendance Initialization**: Attendance is primarily generated on the fly. When a user queries a date, the system fetches all actual records in the `attendance` table. Any active student *not* found in the `attendance` table for that date is dynamically rendered as `absent` by the frontend.
+- **Leave Requests Auto-Marking**: 
+  - To ensure attendance calculations aren't corrupted, any time a student submits a leave request (or an admin approves it), the backend uses `generate_series` in PostgreSQL to forcefully insert `on_leave` records for all days in that range into the `attendance` table.
+  - It uses `ON CONFLICT ... DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'`. This guarantees that if a student is already marked `present`, the system respects their presence, but if they were `absent`, it overrides it to `on_leave`.
+- **Total Working Days Calculation (Crucial Bug Prevention)**:
+  - Working days are dynamically calculated by counting `COUNT(DISTINCT attendance_date)` in the database.
+  - **IMPORTANT**: To avoid future leave requests from inflating the `totalWorkingDays` (and mathematically destroying everyone's attendance percentage), all working day queries MUST append `AND attendance_date <= CURRENT_DATE` in SQL (or `date <= todayStr` in JS). Future dates are NEVER counted as working days.
+- **Attendance Percentage Formula**:
+  - `Effective Days = Total Working Days up to today - Leave Days up to today`.
+  - `Percentage = Present Days / Effective Days`.
+- **Inline Editing**: Admins can edit attendance statuses individually for each student via an inline `<select>` dropdown directly on the `attendance.js` view, which sends a POST request to upsert the status.
 
 #### Leave Approval Side Effect
 - **File:** `routes/leaveRequests.routes.js`, line 99-113.
