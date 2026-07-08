@@ -447,7 +447,7 @@ router.get('/report', authorize('admin'), async (req, res) => {
 
       // Effective working days for this student = total working days minus their leave days
       const effectiveDays = Math.max(0, totalWorkingDays - leaveDays);
-      const percentage = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : 0;
+      const percentage = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : (leaveDays > 0 ? 100 : 0);
 
       return {
         student_id: student.id,

@@ -232,7 +232,7 @@ async function initReports() {
         const sPresent = sAtt.filter(a => a.status === 'present' || a.status === 'late').length;
         const sLeaveDays = sAtt.filter(a => a.status === 'on_leave').length;
         const sEffectiveDays = Math.max(0, totalWorkingDays - sLeaveDays);
-        const sAttPct = sEffectiveDays > 0 ? Math.round((sPresent / sEffectiveDays) * 100) : 0;
+        const sAttPct = sEffectiveDays > 0 ? Math.round((sPresent / sEffectiveDays) * 100) : (sLeaveDays > 0 ? 100 : 0);
         return {
           name: s.name,
           email: s.email,
@@ -481,7 +481,7 @@ async function initReports() {
       const presentAtt = stuAtt.filter(a => a.status === 'present' || a.status === 'late').length;
       const stuLeaveDays = stuAtt.filter(a => a.status === 'on_leave').length;
       const stuEffectiveDays = Math.max(0, totalWorkingDays - stuLeaveDays);
-      const attPct = stuEffectiveDays > 0 ? Math.round((presentAtt / stuEffectiveDays) * 100) : 0;
+      const attPct = stuEffectiveDays > 0 ? Math.round((presentAtt / stuEffectiveDays) * 100) : (stuLeaveDays > 0 ? 100 : 0);
       const initials = s.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
       return { student: s, completedTasks, totalTasks: stuTasks.length, stuProjects, attPct, initials };

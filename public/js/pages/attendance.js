@@ -287,7 +287,7 @@ async function initAttendance() {
           // Working days = distinct dates with any record
           const workingDaySet = new Set(myAll.map(a => (a.attendance_date || '').slice(0, 10)).filter(Boolean));
           const effectiveDays = Math.max(0, workingDaySet.size - leaveDays);
-          const pct = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : 0;
+          const pct = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : (leaveDays > 0 ? 100 : 0);
           
           document.getElementById('attAbsent').textContent = presentDays;
           document.getElementById('attLate').textContent = lateDays;
