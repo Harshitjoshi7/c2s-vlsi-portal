@@ -408,14 +408,15 @@ router.get('/report', authorize('admin'), async (req, res) => {
     );
     const students = studentsRes.rows;
 
-    const report = await Promise.all(students.map(async (student) => {
-      const totalRecordsRes = await db.query(`
-        SELECT COUNT(*) as count FROM attendance
-        WHERE user_id = $1
-          AND TO_CHAR(attendance_date, 'MM') = $2
-          AND TO_CHAR(attendance_date, 'YYYY') = $3
-      `, [student.id, paddedMonth, year]);
+    // Calculate total working days = distinct dates with ANY attendance record this month
+    const workingDaysRes = await db.query(`
+      SELECT COUNT(DISTINCT attendance_date) as count FROM attendance
+      WHERE TO_CHAR(attendance_date, 'MM') = $1
+        AND TO_CHAR(attendance_date, 'YYYY') = $2
+    `, [paddedMonth, year]);
+    const totalWorkingDays = parseInt(workingDaysRes.rows[0].count, 10);
 
+    const report = await Promise.all(students.map(async (student) => {
       const presentDaysRes = await db.query(`
         SELECT COUNT(*) as count FROM attendance
         WHERE user_id = $1
@@ -440,21 +441,20 @@ router.get('/report', authorize('admin'), async (req, res) => {
           AND status = 'on_leave'
       `, [student.id, paddedMonth, year]);
 
-      const totalRecords = parseInt(totalRecordsRes.rows[0].count, 10);
       const presentDays = parseInt(presentDaysRes.rows[0].count, 10);
       const lateDays = parseInt(lateDaysRes.rows[0].count, 10);
       const leaveDays = parseInt(leaveDaysRes.rows[0].count, 10);
 
-      const daysInMonth = new Date(parseInt(year), parseInt(paddedMonth), 0).getDate();
-      const effectiveDays = Math.max(0, totalRecords - leaveDays);
-      const percentage = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : (leaveDays > 0 ? 100 : 0);
+      // Effective working days for this student = total working days minus their leave days
+      const effectiveDays = Math.max(0, totalWorkingDays - leaveDays);
+      const percentage = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : 0;
 
       return {
         student_id: student.id,
         student_name: student.name,
         email: student.email,
         enrollment_id: student.enrollment_id,
-        total_records: totalRecords,
+        total_working_days: totalWorkingDays,
         present_days: presentDays,
         late_days: lateDays,
         leave_days: leaveDays,

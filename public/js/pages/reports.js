@@ -202,9 +202,12 @@ async function initReports() {
     document.getElementById('rActiveProjects').textContent = activeProjects;
     document.getElementById('rCompletedTasks').textContent = completedTasks;
 
+    // Working days = distinct dates that have any attendance record
+    const workingDateSet = new Set(attendanceData.map(a => (a.attendance_date || '').slice(0, 10)).filter(Boolean));
+    const totalWorkingDays = workingDateSet.size;
     const presentCount = attendanceData.filter(a => a.status === 'present' || a.status === 'late').length;
-    const totalAtt = attendanceData.filter(a => a.status !== 'on_leave').length;
-    const avgAtt = totalAtt > 0 ? Math.round((presentCount / totalAtt) * 100) : (attendanceData.length > 0 ? 100 : 0);
+    const totalStudentDays = totalWorkingDays * studentsData.length;
+    const avgAtt = totalStudentDays > 0 ? Math.round((presentCount / totalStudentDays) * 100) : 0;
     document.getElementById('rAvgAttendance').textContent = `${avgAtt}%`;
 
     // Calculate currentReportData for export
@@ -227,8 +230,9 @@ async function initReports() {
 
         const sAtt = attendanceData.filter(a => a.user_id === s.id);
         const sPresent = sAtt.filter(a => a.status === 'present' || a.status === 'late').length;
-        const sTotalAtt = sAtt.filter(a => a.status !== 'on_leave').length;
-        const sAttPct = sTotalAtt > 0 ? Math.round((sPresent / sTotalAtt) * 100) : (sAtt.length > 0 ? 100 : 0);
+        const sLeaveDays = sAtt.filter(a => a.status === 'on_leave').length;
+        const sEffectiveDays = Math.max(0, totalWorkingDays - sLeaveDays);
+        const sAttPct = sEffectiveDays > 0 ? Math.round((sPresent / sEffectiveDays) * 100) : 0;
         return {
           name: s.name,
           email: s.email,
@@ -270,7 +274,7 @@ async function initReports() {
     buildTicketStatusChart(ticketsData);
 
     // Student Activity Table
-    buildStudentActivityTable(studentsData, tasksData, attendanceData);
+    buildStudentActivityTable(studentsData, tasksData, attendanceData, totalWorkingDays);
   }
 
   function buildAttendanceTrendChart(attendanceData) {
@@ -454,7 +458,7 @@ async function initReports() {
     }
   }
 
-  function buildStudentActivityTable(students, tasks, attendance) {
+  function buildStudentActivityTable(students, tasks, attendance, totalWorkingDays) {
     const tableEl = document.getElementById('studentActivityTable');
     if (!tableEl) return;
 
@@ -475,8 +479,9 @@ async function initReports() {
 
       const stuAtt = attendance.filter(a => a.user_id === s.id);
       const presentAtt = stuAtt.filter(a => a.status === 'present' || a.status === 'late').length;
-      const effectiveAtt = stuAtt.filter(a => a.status !== 'on_leave').length;
-      const attPct = effectiveAtt > 0 ? Math.round((presentAtt / effectiveAtt) * 100) : (stuAtt.length > 0 ? 100 : 0);
+      const stuLeaveDays = stuAtt.filter(a => a.status === 'on_leave').length;
+      const stuEffectiveDays = Math.max(0, totalWorkingDays - stuLeaveDays);
+      const attPct = stuEffectiveDays > 0 ? Math.round((presentAtt / stuEffectiveDays) * 100) : 0;
       const initials = s.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
       return { student: s, completedTasks, totalTasks: stuTasks.length, stuProjects, attPct, initials };
