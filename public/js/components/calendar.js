@@ -216,6 +216,16 @@ function initCalendar({ id = 'calendar', data = {}, onDateClick, onMonthChange }
     .cal-day-has-data:hover {
       background: rgba(79, 143, 255, 0.08);
     }
+    .cal-day-selected {
+      background: rgba(139, 92, 246, 0.18) !important;
+      border: 1.5px solid rgba(139, 92, 246, 0.5) !important;
+      transform: scale(1.08);
+      box-shadow: 0 0 8px rgba(139, 92, 246, 0.25);
+    }
+    .cal-day-selected .cal-day-num {
+      color: #a78bfa !important;
+      font-weight: 700;
+    }
   `;
   document.head.appendChild(style);
 })();

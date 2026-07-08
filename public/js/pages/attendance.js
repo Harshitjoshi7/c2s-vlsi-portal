@@ -3,24 +3,6 @@
    Mark attendance, view records and statistics
    ============================================================ */
 
-function getWorkingDays(startDateStr, endDateStr) {
-  if (!startDateStr || !endDateStr) return 0;
-  const start = new Date(startDateStr);
-  const end = new Date(endDateStr);
-  if (isNaN(start) || isNaN(end)) return 0;
-  start.setHours(0,0,0,0);
-  end.setHours(0,0,0,0);
-  
-  let count = 0;
-  let cur = new Date(start);
-  while(cur <= end) {
-    const day = cur.getDay();
-    if (day !== 0 && day !== 6) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
-
 function renderAttendance() {
   const user = getUser();
   const isAdminUser = user && user.role === 'admin';
@@ -57,42 +39,53 @@ function renderAttendance() {
         <div class="stat-card animate-slideUp stagger-1">
           <div class="stat-card-icon green"><i data-lucide="user-check" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="attPresent">—</div>
-          <div class="stat-card-label">${isAdminUser ? 'Present Today' : 'Days Present'}</div>
+          <div class="stat-card-label">${isAdminUser ? 'Present Today' : 'Status'}</div>
         </div>
         <div class="stat-card animate-slideUp stagger-2">
           <div class="stat-card-icon red"><i data-lucide="user-x" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="attAbsent">—</div>
-          <div class="stat-card-label">${isAdminUser ? 'Absent Today' : 'Days Absent'}</div>
+          <div class="stat-card-label">${isAdminUser ? 'Absent Today' : 'Days Present'}</div>
         </div>
         <div class="stat-card animate-slideUp stagger-3">
           <div class="stat-card-icon orange"><i data-lucide="clock" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="attLate">—</div>
-          <div class="stat-card-label">Days Late</div>
+          <div class="stat-card-label">Late</div>
         </div>
         <div class="stat-card animate-slideUp stagger-4">
           <div class="stat-card-icon blue"><i data-lucide="percent" style="width:22px;height:22px"></i></div>
           <div class="stat-card-value" id="attPct">—</div>
-          <div class="stat-card-label">Attendance Rate</div>
+          <div class="stat-card-label">${isAdminUser ? 'Attendance Rate' : 'Attendance Rate'}</div>
         </div>
       </div>
 
-      <!-- Filters -->
+      <!-- Date Indicator & Filters -->
       <div class="card animate-slideUp stagger-3" style="margin-bottom:var(--space-lg)">
         <div class="card-body" style="padding:var(--space-md)">
-          <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center">
-            ${isAdminUser ? `
-            <select class="form-select" id="attUserFilter" style="min-width:200px">
-              <option value="">All Students</option>
-            </select>
-            ` : ''}
-            <select class="form-select" id="attStatusFilter" style="width:auto">
-              <option value="">All Status</option>
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-              <option value="late">Late</option>
-              <option value="on_leave">On Leave</option>
-            </select>
-            <input type="month" class="form-input" id="attMonthFilter" style="width:auto" />
+          <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:var(--space-md);flex-wrap:wrap">
+              <div id="dateIndicator" style="display:flex;align-items:center;gap:var(--space-sm)">
+                <i data-lucide="calendar" style="width:18px;height:18px;color:var(--accent-primary)"></i>
+                <span style="font-weight:600;font-size:0.95rem;color:var(--text-primary)" id="dateIndicatorText">Today</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="backToTodayBtn" style="display:none;color:var(--accent-primary);font-size:0.8rem">
+                <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+                Back to Today
+              </button>
+            </div>
+            <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center">
+              ${isAdminUser ? `
+              <select class="form-select" id="attUserFilter" style="min-width:200px">
+                <option value="">All Students</option>
+              </select>
+              ` : ''}
+              <select class="form-select" id="attStatusFilter" style="width:auto">
+                <option value="">All Status</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+                <option value="on_leave">On Leave</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -216,17 +209,14 @@ function renderAttendance() {
 async function initAttendance() {
   const user = getUser();
   const isAdminUser = user && user.role === 'admin';
-  let allAttendance = [];
   let studentsList = [];
+  let allAttendance = []; // For calendar data (all records for the month)
   let currentCalMonth = new Date().getMonth();
   let currentCalYear = new Date().getFullYear();
-
-  // Set default month filter to current month
-  const monthFilter = document.getElementById('attMonthFilter');
-  if (monthFilter) {
-    const now = new Date();
-    monthFilter.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
+  
+  // Selected date state — defaults to today
+  const todayStr = new Date().toISOString().split('T')[0];
+  let selectedDate = todayStr;
 
   // Load students for admin
   if (isAdminUser) {
@@ -245,25 +235,89 @@ async function initAttendance() {
     } catch(e) {}
   }
 
-  async function loadAttendance() {
+  // ── Update date indicator ──
+  function updateDateIndicator() {
+    const indicatorText = document.getElementById('dateIndicatorText');
+    const backBtn = document.getElementById('backToTodayBtn');
+    if (!indicatorText) return;
+
+    if (selectedDate === todayStr) {
+      indicatorText.textContent = 'Today — ' + new Date(todayStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+      if (backBtn) backBtn.style.display = 'none';
+    } else {
+      indicatorText.textContent = new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+      if (backBtn) backBtn.style.display = 'inline-flex';
+    }
+  }
+
+  // ── Load attendance for a specific date ──
+  async function loadDateAttendance() {
     try {
-      const endpoint = isAdminUser ? 'attendance' : 'attendance/my';
-      const res = await api.get(endpoint);
-      allAttendance = Array.isArray(res) ? res : (res?.data || []);
+      const res = await api.get(`attendance/date/${selectedDate}`);
+      const data = res?.data || {};
+      const records = data.records || [];
+      const summary = data.summary || {};
+      const absentList = data.absent || [];
       
-      // Dynamic Check-In Button State
+      // Update stats
+      if (isAdminUser) {
+        const totalStudents = summary.total_students || studentsList.length || 0;
+        const presentCount = summary.present_count || 0;
+        const absentCount = summary.absent_count || (totalStudents - presentCount);
+        const lateCount = summary.late_count || 0;
+        const pct = totalStudents > 0 ? Math.round(((presentCount + lateCount) / totalStudents) * 100) : 0;
+
+        document.getElementById('attPresent').textContent = presentCount;
+        document.getElementById('attAbsent').textContent = absentCount;
+        document.getElementById('attLate').textContent = lateCount;
+        document.getElementById('attPct').textContent = `${pct}%`;
+      } else {
+        // Student view: show their status for the selected day
+        const myStatus = summary.status || 'absent';
+        const statusLabels = { present: '✅ Present', absent: '❌ Absent', late: '⚠️ Late', on_leave: 'ℹ️ On Leave' };
+        document.getElementById('attPresent').textContent = statusLabels[myStatus] || myStatus;
+        
+        // Load total stats from /my endpoint for the student's overall counts
+        try {
+          const myRes = await api.get('attendance/my');
+          const myAll = Array.isArray(myRes) ? myRes : (myRes?.data || []);
+          const presentDays = myAll.filter(a => a.status === 'present' || a.status === 'late').length;
+          const lateDays = myAll.filter(a => a.status === 'late').length;
+          const totalDays = myAll.length;
+          const pct = totalDays > 0 ? Math.round((presentDays / Math.max(totalDays, 1)) * 100) : 0;
+          
+          document.getElementById('attAbsent').textContent = presentDays;
+          document.getElementById('attLate').textContent = lateDays;
+          document.getElementById('attPct').textContent = `${pct}%`;
+        } catch(e) {}
+      }
+
+      // Apply filters to records
+      const statusFilter = document.getElementById('attStatusFilter')?.value || '';
+      const userFilter = document.getElementById('attUserFilter')?.value || '';
+
+      let filtered = records;
+      if (statusFilter) {
+        filtered = filtered.filter(r => r.status === statusFilter);
+      }
+      if (userFilter) {
+        filtered = filtered.filter(r => String(r.user_id) === userFilter);
+      }
+
+      renderAttendanceTable(filtered, absentList, statusFilter);
+      
+      // Update check-in button state for students
       if (!isAdminUser) {
-        const today = new Date().toISOString().split('T')[0];
-        const already = allAttendance.find(a => a.attendance_date === today);
+        const myRecord = records.find(a => String(a.user_id) === String(user.id));
         const checkInBtn = document.getElementById('checkInBtn');
         if (checkInBtn) {
-          if (already) {
+          if (myRecord) {
             checkInBtn.innerHTML = `<i data-lucide="x-circle" style="width:16px;height:16px"></i> Unmark Attendance`;
             checkInBtn.classList.remove('btn-primary');
             checkInBtn.classList.add('btn-secondary');
             checkInBtn.style.color = 'var(--error)';
             checkInBtn.style.borderColor = 'var(--error)';
-            checkInBtn.dataset.recordId = already.id;
+            checkInBtn.dataset.recordId = myRecord.id;
           } else {
             checkInBtn.innerHTML = `<i data-lucide="log-in" style="width:16px;height:16px"></i> Check In Today`;
             checkInBtn.classList.add('btn-primary');
@@ -276,75 +330,39 @@ async function initAttendance() {
         }
       }
 
-      updateStats();
-      applyFilters();
+      updateDateIndicator();
+    } catch(e) {
+      console.error('Load date attendance error:', e);
+      renderAttendanceTable([], [], '');
+    }
+  }
+
+  // ── Load ALL attendance for calendar dots ──
+  async function loadAllAttendanceForCalendar() {
+    try {
+      const endpoint = isAdminUser ? 'attendance' : 'attendance/my';
+      const res = await api.get(endpoint);
+      allAttendance = Array.isArray(res) ? res : (res?.data || []);
       updateCalendar();
     } catch(e) {
-      renderAttendanceTable([]);
+      allAttendance = [];
+      updateCalendar();
     }
   }
 
-  function updateStats(records = allAttendance) {
-    const monthFilter = document.getElementById('attMonthFilter')?.value;
-    const present = records.filter(a => a.status === 'present').length;
-    let absent = records.filter(a => a.status === 'absent').length;
-    const late = records.filter(a => a.status === 'late').length;
-    const total = records.length;
-    
-    let expectedDays = total;
-    
-    // Determine the calculation period based on filter
-    let calcEnd = new Date(); // default to today
-    let calcStart = null;
-    
-    if (monthFilter) {
-      const [year, month] = monthFilter.split('-');
-      calcStart = new Date(year, parseInt(month) - 1, 1);
-      const endOfMonth = new Date(year, parseInt(month), 0);
-      if (endOfMonth < calcEnd) calcEnd = endOfMonth; // cap at end of that month if past
-    }
-    
-    if (isAdminUser && studentsList && studentsList.length > 0) {
-      expectedDays = studentsList.reduce((acc, u) => {
-        let start = calcStart || new Date(u.created_at || new Date());
-        let userCreated = new Date(u.created_at || new Date());
-        if (userCreated > start) start = userCreated; // don't count days before user joined
-        if (start > calcEnd) return acc;
-        return acc + getWorkingDays(start, calcEnd);
-      }, 0);
-    } else if (!isAdminUser && user && user.created_at) {
-      let start = calcStart || new Date(user.created_at);
-      let userCreated = new Date(user.created_at);
-      if (userCreated > start) start = userCreated;
-      if (start <= calcEnd) {
-        expectedDays = getWorkingDays(start, calcEnd);
-      } else {
-        expectedDays = 0;
-      }
-    }
-    
-    expectedDays = Math.max(expectedDays, total);
-    const missingDays = expectedDays > total ? expectedDays - total : 0;
-    absent += missingDays;
-
-    const pct = expectedDays > 0 ? Math.round(((present + late) / expectedDays) * 100) : 0;
-
-    document.getElementById('attPresent').textContent = present;
-    document.getElementById('attAbsent').textContent = absent;
-    document.getElementById('attLate').textContent = late;
-    document.getElementById('attPct').textContent = `${pct}%`;
-  }
-
-  function renderAttendanceTable(records) {
+  function renderAttendanceTable(records, absentList = [], statusFilter = '') {
     const container = document.getElementById('attendanceContainer');
     if (!container) return;
 
-    if (!records || records.length === 0) {
+    // If showing "absent" filter, show absent students (from absentList) 
+    const showAbsent = statusFilter === 'absent' && isAdminUser;
+
+    if ((!records || records.length === 0) && (!showAbsent || absentList.length === 0)) {
       container.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon"><i data-lucide="calendar" style="width:28px;height:28px"></i></div>
           <div class="empty-state-title">No records found</div>
-          <div class="empty-state-description">No attendance records match your filters.</div>
+          <div class="empty-state-description">No attendance records for this date.</div>
         </div>
       `;
       if (window.lucide) lucide.createIcons();
@@ -358,16 +376,17 @@ async function initAttendance() {
       on_leave: { color:'var(--info)',    bg:'rgba(64,196,255,0.1)', icon:'plane'        },
     };
 
-    // Card-based layout (works on all screen sizes, especially mobile)
-    container.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md)">
-        ${records.map(rec => {
-          const s = statusColors[rec.status] || statusColors.absent;
-          const dateStr = new Date(rec.attendance_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-          const checkIn = rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
-          const checkOut = rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
-          const initials = rec.user_name ? rec.user_name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '??';
-          return `
+    let html = `<div style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md)">`;
+
+    // Show present/late/on_leave records (unless filtering absent only)
+    if (statusFilter !== 'absent') {
+      records.forEach(rec => {
+        const s = statusColors[rec.status] || statusColors.absent;
+        const dateStr = new Date(rec.attendance_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+        const checkIn = rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+        const checkOut = rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+        const initials = rec.user_name ? rec.user_name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '??';
+        html += `
           <div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md);background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--border-radius-sm)">
             ${isAdminUser ? `
             <div class="avatar avatar-sm" style="flex-shrink:0">${initials}</div>
@@ -392,9 +411,35 @@ async function initAttendance() {
               <i data-lucide="trash-2" style="width:14px;height:14px"></i>
             </button>` : ''}
           </div>`;
-        }).join('')}
-      </div>
-    `;
+      });
+    }
+
+    // Show absent students (admin only, for the selected date)
+    if (isAdminUser && (statusFilter === '' || statusFilter === 'absent') && absentList.length > 0) {
+      const s = statusColors.absent;
+      absentList.forEach(student => {
+        const initials = student.name ? student.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '??';
+        html += `
+          <div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md);background:rgba(255,82,82,0.03);border:1px solid rgba(255,82,82,0.15);border-radius:var(--border-radius-sm);opacity:0.8">
+            <div class="avatar avatar-sm" style="flex-shrink:0;background:rgba(255,82,82,0.15);color:var(--error)">${initials}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:4px">
+                <span style="font-weight:600;font-size:0.875rem;color:var(--text-primary)">${student.name}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--space-md);flex-wrap:wrap">
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.7rem;font-weight:600;background:${s.bg};color:${s.color}">
+                  <i data-lucide="${s.icon}" style="width:11px;height:11px"></i>
+                  absent
+                </span>
+                <span style="font-size:0.75rem;color:var(--text-muted)">Not checked in</span>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
     if (window.lucide) lucide.createIcons();
   }
   
@@ -403,26 +448,12 @@ async function initAttendance() {
     try {
       await api.delete(`attendance/${id}`);
       showToast({ message: 'Attendance unmarked successfully.', type: 'success' });
-      await loadAttendance();
+      await loadDateAttendance();
+      await loadAllAttendanceForCalendar();
     } catch(err) {
       showToast({ message: err.message || 'Failed to unmark attendance', type: 'error' });
     }
   };
-
-  function applyFilters() {
-    const statusFilter = document.getElementById('attStatusFilter')?.value || '';
-    const monthFilter = document.getElementById('attMonthFilter')?.value || '';
-    const userFilter = document.getElementById('attUserFilter')?.value || '';
-
-    const filtered = allAttendance.filter(rec => {
-      const matchStatus = !statusFilter || rec.status === statusFilter;
-      const matchMonth = !monthFilter || (rec.attendance_date || '').startsWith(monthFilter);
-      const matchUser = !userFilter || String(rec.user_id) === userFilter;
-      return matchStatus && matchMonth && matchUser;
-    });
-    renderAttendanceTable(filtered);
-    updateStats(filtered);
-  }
 
   function updateCalendar() {
     const calContainer = document.getElementById('attendanceCalendarContainer');
@@ -438,7 +469,12 @@ async function initAttendance() {
         else if (att.status === 'late') color = 'var(--warning)';
         else if (att.status === 'on_leave') color = 'var(--info)';
 
-        calData[dateStr] = { status: att.status, color };
+        // For admin, multiple students per date → use the dominant status
+        if (!calData[dateStr]) {
+          calData[dateStr] = { status: att.status, color, count: 1 };
+        } else {
+          calData[dateStr].count++;
+        }
       }
     });
 
@@ -453,7 +489,11 @@ async function initAttendance() {
       id: 'attendanceCalendar',
       data: calData,
       onDateClick: (dateStr) => {
-        // Just filter by that month/date if needed, or open a specific view
+        selectedDate = dateStr;
+        loadDateAttendance();
+        
+        // Highlight selected date in calendar
+        highlightSelectedDate();
       },
       onMonthChange: (m, y) => {
         currentCalMonth = m;
@@ -461,10 +501,37 @@ async function initAttendance() {
         updateCalendar();
       }
     });
+
+    // Highlight currently selected date
+    highlightSelectedDate();
   }
 
-  ['attStatusFilter','attMonthFilter','attUserFilter'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', applyFilters);
+  function highlightSelectedDate() {
+    // Remove previous selection
+    document.querySelectorAll('.cal-day-selected').forEach(el => el.classList.remove('cal-day-selected'));
+    // Add selection to current
+    const selectedEl = document.querySelector(`.cal-day[data-date="${selectedDate}"]`);
+    if (selectedEl) {
+      selectedEl.classList.add('cal-day-selected');
+    }
+  }
+
+  // ── Filter change handler ──
+  ['attStatusFilter', 'attUserFilter'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      loadDateAttendance();
+    });
+  });
+
+  // ── Back to Today button ──
+  document.getElementById('backToTodayBtn')?.addEventListener('click', () => {
+    selectedDate = todayStr;
+    // Reset calendar to today's month if needed
+    const todayDate = new Date();
+    currentCalMonth = todayDate.getMonth();
+    currentCalYear = todayDate.getFullYear();
+    updateCalendar();
+    loadDateAttendance();
   });
 
   // Student check-in / unmark
@@ -472,15 +539,16 @@ async function initAttendance() {
   if (checkInBtn) {
     checkInBtn.addEventListener('click', async () => {
       const today = new Date().toISOString().split('T')[0];
-      const already = allAttendance.find(a => a.attendance_date === today);
       
-      if (already) {
+      // Check if already checked in by looking at button state
+      if (checkInBtn.dataset.recordId) {
         // Unmark attendance
         try {
           checkInBtn.disabled = true;
-          await api.delete(`attendance/${already.id}`);
+          await api.delete(`attendance/${checkInBtn.dataset.recordId}`);
           showToast({ message: 'Attendance unmarked successfully.', type: 'success' });
-          await loadAttendance();
+          await loadDateAttendance();
+          await loadAllAttendanceForCalendar();
         } catch(err) {
           showToast({ message: err.message || 'Failed to unmark attendance', type: 'error' });
         } finally {
@@ -496,7 +564,8 @@ async function initAttendance() {
             check_in_time: new Date().toISOString(),
           });
           showToast({ message: 'Checked in successfully!', type: 'success' });
-          await loadAttendance();
+          await loadDateAttendance();
+          await loadAllAttendanceForCalendar();
         } catch(err) {
           showToast({ message: err.message || 'Check-in failed', type: 'error' });
         } finally {
@@ -512,7 +581,7 @@ async function initAttendance() {
 
   async function populateMarkAttModal() {
     const dateInput = document.getElementById('markAttDate');
-    const selectedDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+    const modalDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
 
     const listEl = document.getElementById('markAttStudentsList');
     if (!listEl) return;
@@ -522,9 +591,15 @@ async function initAttendance() {
       return;
     }
 
+    // Fetch existing attendance for the modal's selected date
+    let existingRecords = [];
+    try {
+      const res = await api.get(`attendance/date/${modalDate}`);
+      existingRecords = res?.data?.records || [];
+    } catch(e) {}
+
     listEl.innerHTML = studentsList.map(u => {
-      // Find if student already has a record for this date
-      const existing = allAttendance.find(a => String(a.user_id) === String(u.id) && a.attendance_date === selectedDate);
+      const existing = existingRecords.find(a => String(a.user_id) === String(u.id));
       const currentStatus = existing ? existing.status : 'present';
 
       return `
@@ -573,12 +648,19 @@ async function initAttendance() {
     btn.disabled = true;
     spinner.style.display = 'inline-block';
 
+    // Fetch existing records for this date to find existing IDs
+    let existingRecords = [];
+    try {
+      const res = await api.get(`attendance/date/${date}`);
+      existingRecords = res?.data?.records || [];
+    } catch(e) {}
+
     let successCount = 0;
     let failCount = 0;
 
     for (const u of studentsList) {
       const status = document.getElementById(`attStatus_${u.id}`)?.value || 'present';
-      const existing = allAttendance.find(a => String(a.user_id) === String(u.id) && a.attendance_date === date);
+      const existing = existingRecords.find(a => String(a.user_id) === String(u.id));
 
       if (status === 'unmark') {
         if (existing) {
@@ -614,7 +696,8 @@ async function initAttendance() {
     if (successCount > 0) showToast({ message: `Attendance saved for ${successCount} students!`, type: 'success' });
     if (failCount > 0) showToast({ message: `Failed for ${failCount} entries`, type: 'error' });
 
-    await loadAttendance();
+    await loadDateAttendance();
+    await loadAllAttendanceForCalendar();
   });
 
   // ── Leave Requests ──
@@ -744,7 +827,9 @@ async function initAttendance() {
     }
   });
 
-  await loadAttendance();
+  // ── Initial Load ──
+  await loadDateAttendance();
+  await loadAllAttendanceForCalendar();
   await loadLeaveRequests();
 }
 

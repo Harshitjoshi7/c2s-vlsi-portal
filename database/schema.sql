@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS announcements (
 CREATE TABLE IF NOT EXISTS notifications (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,
-  type TEXT CHECK(type IN ('task', 'ticket', 'announcement', 'leave', 'deadline')) DEFAULT 'announcement',
+  type TEXT CHECK(type IN ('task', 'ticket', 'announcement', 'leave', 'deadline', 'attendance')) DEFAULT 'announcement',
   title TEXT NOT NULL,
   message TEXT,
   link TEXT,

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db from '../database/db.js';
+import db, { createNotification } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { authorize } from '../middleware/roleGuard.js';
 
@@ -33,6 +33,17 @@ router.post('/check-in', async (req, res) => {
 
     // Gamification: Add 5 points for checking in
     await db.query('UPDATE users SET points = COALESCE(points, 0) + 5 WHERE id = $1', [req.user.id]);
+
+    // Send attendance confirmation notification
+    try {
+      await createNotification(
+        req.user.id,
+        'announcement',
+        '✅ Attendance Marked',
+        `You have been marked Present for ${new Date(today).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}.`,
+        '/attendance'
+      );
+    } catch(e) { /* non-critical */ }
 
     res.status(201).json({ success: true, data: recordRes.rows[0] });
   } catch (error) {
@@ -94,6 +105,7 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ success: false, error: 'Attendance already recorded for this date.' });
     }
 
+    const finalStatus = status || 'present';
     const insertRes = await db.query(`
       INSERT INTO attendance (user_id, attendance_date, status, check_in_time, check_out_time)
       VALUES ($1, $2, $3, $4, $5)
@@ -101,12 +113,28 @@ router.post('/', async (req, res) => {
     `, [
       uid,
       date,
-      status || 'present',
+      finalStatus,
       check_in_time || new Date().toISOString(),
       check_out_time || null,
     ]);
 
     const recordRes = await db.query('SELECT * FROM attendance WHERE id = $1', [insertRes.rows[0].id]);
+
+    // Send attendance notification to the student (when admin marks)
+    if (req.user.role === 'admin' && String(uid) !== String(req.user.id)) {
+      const statusEmoji = finalStatus === 'present' ? '✅' : finalStatus === 'absent' ? '❌' : finalStatus === 'late' ? '⚠️' : 'ℹ️';
+      const statusLabel = finalStatus.replace('_', ' ').replace(/^\w/, c => c.toUpperCase());
+      const dateLabel = new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      try {
+        await createNotification(
+          uid,
+          'announcement',
+          `${statusEmoji} Attendance: ${statusLabel}`,
+          `You have been marked ${statusLabel} for ${dateLabel}.`,
+          '/attendance'
+        );
+      } catch(e) { /* non-critical */ }
+    }
 
     res.status(201).json({ success: true, data: recordRes.rows[0] });
   } catch (error) {
@@ -140,8 +168,25 @@ router.put('/:id', authorize('admin'), async (req, res) => {
     ]);
 
     const updatedRes = await db.query('SELECT * FROM attendance WHERE id = $1', [id]);
+    const updated = updatedRes.rows[0];
 
-    res.json({ success: true, data: updatedRes.rows[0] });
+    // Send notification to the student about status change
+    if (status && updated) {
+      const statusEmoji = status === 'present' ? '✅' : status === 'absent' ? '❌' : status === 'late' ? '⚠️' : 'ℹ️';
+      const statusLabel = status.replace('_', ' ').replace(/^\w/, c => c.toUpperCase());
+      const dateLabel = new Date(updated.attendance_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      try {
+        await createNotification(
+          updated.user_id,
+          'announcement',
+          `${statusEmoji} Attendance Updated: ${statusLabel}`,
+          `Your attendance for ${dateLabel} has been updated to ${statusLabel}.`,
+          '/attendance'
+        );
+      } catch(e) { /* non-critical */ }
+    }
+
+    res.json({ success: true, data: updated });
   } catch (error) {
     console.error('Update attendance error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -185,6 +230,79 @@ router.get('/today', authorize('admin'), async (req, res) => {
     });
   } catch (error) {
     console.error('Today attendance error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// GET /api/attendance/date/:date — attendance for a specific date
+router.get('/date/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const isAdminUser = req.user.role === 'admin';
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (isAdminUser) {
+      // Admin: return all students' attendance for this date
+      const attendanceRes = await db.query(`
+        SELECT a.*, u.name as user_name, u.email as user_email, u.enrollment_id
+        FROM attendance a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.attendance_date = $1
+        ORDER BY a.check_in_time ASC
+      `, [date]);
+      const attendance = attendanceRes.rows;
+
+      const allStudentsRes = await db.query(
+        "SELECT id, name, email, enrollment_id FROM users WHERE role = 'student' AND is_active = 1"
+      );
+      const allStudents = allStudentsRes.rows;
+
+      const checkedInIds = new Set(attendance.map((a) => a.user_id));
+      const absent = allStudents.filter((s) => !checkedInIds.has(s.id));
+      const presentCount = attendance.filter(a => a.status === 'present').length;
+      const lateCount = attendance.filter(a => a.status === 'late').length;
+      const leaveCount = attendance.filter(a => a.status === 'on_leave').length;
+
+      res.json({
+        success: true,
+        data: {
+          date,
+          records: attendance,
+          absent,
+          summary: {
+            total_students: allStudents.length,
+            present_count: presentCount,
+            absent_count: absent.length,
+            late_count: lateCount,
+            leave_count: leaveCount,
+          },
+        },
+      });
+    } else {
+      // Student: return only their own record for this date
+      const result = await db.query(
+        'SELECT * FROM attendance WHERE user_id = $1 AND attendance_date = $2',
+        [req.user.id, date]
+      );
+
+      res.json({
+        success: true,
+        data: {
+          date,
+          records: result.rows,
+          summary: {
+            total_records: result.rows.length,
+            status: result.rows[0]?.status || 'absent',
+          },
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Date attendance error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });

@@ -63,13 +63,16 @@ self.addEventListener('push', event => {
     try { data = { ...data, ...event.data.json() }; } catch (e) {}
   }
 
+  // Use unique tag so attendance notifications don't collapse with others
+  const uniqueTag = 'c2s-' + Date.now();
+
   const options = {
     body: data.body,
     icon: '/icons/icon.svg',
     badge: '/icons/icon.svg',
-    tag: 'c2s-notification',           // Collapse duplicates
+    tag: uniqueTag,
     renotify: true,
-    vibrate: [150, 75, 150],
+    vibrate: [150, 75, 150, 75, 200],
     silent: false,                     // Enforce default system sound
     data: { link: data.link },
     actions: [

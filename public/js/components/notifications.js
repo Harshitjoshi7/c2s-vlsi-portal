@@ -7,6 +7,7 @@ const NOTIF_ICONS = {
   task:         { icon: 'list-checks',    color: 'var(--warning)'          },
   ticket:       { icon: 'ticket',         color: 'var(--error)'            },
   announcement: { icon: 'megaphone',      color: 'var(--accent-secondary)' },
+  attendance:   { icon: 'calendar-check', color: 'var(--success)'          },
   leave:        { icon: 'calendar-check', color: 'var(--info)'             },
   deadline:     { icon: 'clock',          color: 'var(--error)'            },
 };

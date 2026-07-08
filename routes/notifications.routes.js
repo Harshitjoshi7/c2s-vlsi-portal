@@ -6,10 +6,6 @@ const router = Router();
 
 // GET /api/notifications/cron/daily-attendance — Cron job to notify students missing attendance
 router.get('/cron/daily-attendance', async (req, res) => {
-  // Simple protection: cron endpoints usually have an auth header from the platform.
-  // Vercel passes 'authorization: Bearer <CRON_SECRET>' if configured.
-  // For simplicity, we just allow it or check a basic secret if passed.
-  
   try {
     const today = new Date().toISOString().split('T')[0];
     
@@ -17,6 +13,7 @@ router.get('/cron/daily-attendance', async (req, res) => {
     const missingStudentsRes = await db.query(`
       SELECT id, name FROM users 
       WHERE role = 'student' 
+      AND is_active = 1
       AND id NOT IN (
         SELECT user_id FROM attendance WHERE attendance_date = $1
       )
@@ -27,7 +24,7 @@ router.get('/cron/daily-attendance', async (req, res) => {
       await createNotification(
         student.id,
         'deadline', // Use deadline type for urgency
-        'Attendance Reminder',
+        '⏰ Attendance Reminder',
         'You have not marked your attendance today! Please check in.',
         '/attendance'
       );
@@ -37,6 +34,59 @@ router.get('/cron/daily-attendance', async (req, res) => {
     res.json({ success: true, notified: count, message: `Sent attendance reminder to ${count} students.` });
   } catch (error) {
     console.error('Daily attendance cron error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// GET /api/notifications/cron/attendance-summary — End-of-day cron: send present/absent summary to all students
+router.get('/cron/attendance-summary', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const dateLabel = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    
+    // Get all active students
+    const allStudentsRes = await db.query(
+      "SELECT id, name FROM users WHERE role = 'student' AND is_active = 1"
+    );
+    
+    // Get today's attendance records
+    const attendanceRes = await db.query(
+      'SELECT user_id, status FROM attendance WHERE attendance_date = $1',
+      [today]
+    );
+    const attendanceMap = {};
+    attendanceRes.rows.forEach(a => { attendanceMap[a.user_id] = a.status; });
+    
+    let count = 0;
+    for (const student of allStudentsRes.rows) {
+      const status = attendanceMap[student.id];
+      let emoji, title, message;
+      
+      if (status === 'present') {
+        emoji = '✅';
+        title = `${emoji} Today's Attendance: Present`;
+        message = `You were marked Present for ${dateLabel}. Great job!`;
+      } else if (status === 'late') {
+        emoji = '⚠️';
+        title = `${emoji} Today's Attendance: Late`;
+        message = `You were marked Late for ${dateLabel}. Try to be on time tomorrow!`;
+      } else if (status === 'on_leave') {
+        emoji = 'ℹ️';
+        title = `${emoji} Today's Attendance: On Leave`;
+        message = `You were on leave for ${dateLabel}.`;
+      } else {
+        emoji = '❌';
+        title = `${emoji} Today's Attendance: Absent`;
+        message = `You were marked Absent for ${dateLabel}. Contact admin if this is incorrect.`;
+      }
+      
+      await createNotification(student.id, 'deadline', title, message, '/attendance');
+      count++;
+    }
+    
+    res.json({ success: true, notified: count, message: `Sent attendance summary to ${count} students.` });
+  } catch (error) {
+    console.error('Attendance summary cron error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
