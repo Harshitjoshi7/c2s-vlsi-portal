@@ -85,18 +85,31 @@ router.post('/', authorize('admin'), async (req, res) => {
   }
 });
 
-// PUT /api/pcs/:id — update PC details (admin only)
-router.put('/:id', authorize('admin'), async (req, res) => {
+// PUT /api/pcs/:id — update PC details (admin or assigned student)
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { pc_name, specs, installed_software, condition, notes } = req.body;
+    const isAdmin = req.user.role === 'admin';
 
     const pcRes = await db.query('SELECT * FROM pcs WHERE id = $1', [id]);
     if (!pcRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'PC not found.' });
     }
 
-    if (pc_name) {
+    if (!isAdmin) {
+      // Check if student is assigned to this PC
+      const assignmentRes = await db.query(
+        "SELECT id FROM pc_assignments WHERE pc_id = $1 AND user_id = $2 AND status = 'active'",
+        [id, req.user.id]
+      );
+      if (!assignmentRes.rows[0]) {
+        return res.status(403).json({ success: false, error: 'You are not authorized to edit this PC.' });
+      }
+      if (pc_name) {
+        return res.status(403).json({ success: false, error: 'Students cannot change the PC name.' });
+      }
+    } else if (pc_name) {
       const nameExistsRes = await db.query('SELECT id FROM pcs WHERE pc_name = $1 AND id != $2', [pc_name, id]);
       if (nameExistsRes.rows[0]) {
         return res.status(409).json({ success: false, error: 'PC name already in use.' });

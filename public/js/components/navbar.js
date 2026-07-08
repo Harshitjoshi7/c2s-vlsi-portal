@@ -54,6 +54,7 @@ function renderSidebar() {
 
         <span class="nav-section">Lab</span>
         ${navItem('monitor', 'PCs & Assets', '/pcs')}
+        ${navItem('activity', 'PC Usage', '/pc-usage')}
         ${navItem('ticket', 'Tickets', '/tickets')}
 
         <span class="nav-section">Tracking</span>

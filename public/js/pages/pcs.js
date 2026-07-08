@@ -291,10 +291,10 @@ async function initPCs() {
                   </div>
                   <div style="display:flex;align-items:center;gap:4px">
                     <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${cond.bg};color:${cond.color}">${cond.label}</span>
-                    ${isAdminUser ? `
                     <button class="btn btn-ghost btn-sm" onclick="editPC(${pc.id})" title="Edit">
                       <i data-lucide="pencil" style="width:13px;height:13px"></i>
                     </button>
+                    ${isAdminUser ? `
                     <button class="btn btn-ghost btn-sm" onclick="deletePC(${pc.id})" style="color:var(--error)" title="Delete">
                       <i data-lucide="trash-2" style="width:13px;height:13px"></i>
                     </button>` : ''}
@@ -387,6 +387,7 @@ async function initPCs() {
     editingPCId = pc ? pc.id : null;
     document.getElementById('pcModalTitle').textContent = pc ? 'Edit PC' : 'Add PC';
     document.getElementById('pcName').value = pc?.pc_name || '';
+    document.getElementById('pcName').disabled = (!isAdminUser && pc);
     // Parse specs
     const specsObj = pc ? (() => { try { return JSON.parse(pc.specs || '{}'); } catch { return {}; }})() : {};
     document.getElementById('pcSpecs').value = typeof specsObj === 'string' ? specsObj : Object.entries(specsObj).map(([k,v])=>`${k}: ${v}`).join(', ');
@@ -408,19 +409,23 @@ async function initPCs() {
 
   document.getElementById('pcSubmitBtn')?.addEventListener('click', async () => {
     const pc_name = document.getElementById('pcName').value.trim();
-    if (!pc_name) { showToast({ message: 'PC name is required', type: 'warning' }); return; }
+    if (!pc_name && isAdminUser) { showToast({ message: 'PC name is required', type: 'warning' }); return; }
 
     const specsRaw = document.getElementById('pcSpecs').value.trim();
     const swRaw = document.getElementById('pcSoftware').value;
     const installed_software = swRaw ? swRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     const payload = {
-      pc_name,
       specs: specsRaw ? { description: specsRaw } : {},
       installed_software,
       condition: document.getElementById('pcCondition').value,
       notes: document.getElementById('pcNotes').value.trim() || null,
     };
+    
+    // Only send pc_name if admin or creating
+    if (isAdminUser || !editingPCId) {
+      payload.pc_name = pc_name;
+    }
 
     const btnText = document.getElementById('pcSubmitText');
     const spinner = document.getElementById('pcSubmitSpinner');

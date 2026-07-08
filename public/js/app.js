@@ -44,6 +44,7 @@ const routes = {
   '/projects':       { render: renderProjects,     init: initProjects,     auth: true  },
   '/tasks':          { render: renderTasks,        init: initTasks,        auth: true  },
   '/pcs':            { render: renderPCs,          init: initPCs,          auth: true  },
+  '/pc-usage':       { render: renderPcUsage,      init: initPcUsage,      auth: true  },
   '/attendance':     { render: renderAttendance,   init: initAttendance,   auth: true  },
   '/profile':        { render: renderProfile,      init: initProfile,      auth: true  },
   '/users':          { render: renderUsers,        init: initUsers,        auth: true, admin: true },
@@ -207,6 +208,7 @@ window.addEventListener('popstate', renderPage);
 
 document.addEventListener('DOMContentLoaded', () => {
   renderPage();
+  setupPcReminders();
 });
 
 // ── Service Worker Messages ───────────────────────────────────
@@ -243,6 +245,66 @@ function playNotificationSound() {
   } catch (e) {
     console.warn('Audio play failed', e);
   }
+}
+
+// ── Daily PC Reminders ────────────────────────────────────────
+
+function setupPcReminders() {
+  setInterval(async () => {
+    const user = getUser();
+    if (!user || user.role === 'admin') return;
+
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    
+    // Only trigger exactly on the minute
+    if (now.getSeconds() !== 0) return;
+
+    if ((hours === 9 && minutes === 35) || (hours === 16 && minutes === 0)) {
+      try {
+        // Check if student is present today
+        const attRes = await api.get('attendance/my');
+        const myAll = Array.isArray(attRes) ? attRes : (attRes?.data || []);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayRecord = myAll.find(a => (a.attendance_date || '').slice(0, 10) === todayStr);
+
+        if (todayRecord && (todayRecord.status === 'present' || todayRecord.status === 'late')) {
+          const isMorning = hours === 9;
+          
+          showToast({ 
+            message: isMorning ? 'Time to turn ON your PC for the lab!' : 'Lab is ending. Please turn OFF your PC!', 
+            type: 'info' 
+          });
+
+          // Play a notification chime using Web Audio API
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(isMorning ? 523.25 : 440, ctx.currentTime); // C5 or A4
+          if (isMorning) {
+            osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15); // E5
+          } else {
+            osc.frequency.setValueAtTime(349.23, ctx.currentTime + 0.15); // F4
+          }
+          
+          gain.gain.setValueAtTime(0, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+          
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.5);
+        }
+      } catch(e) {
+        console.error('Reminder error', e);
+      }
+    }
+  }, 1000); // Check every second to catch the exact 0th second
 }
 
 // ── Global Exports ───────────────────────────────────────────
