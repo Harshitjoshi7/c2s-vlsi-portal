@@ -207,9 +207,6 @@ function renderAttendance() {
 }
 
 async function initAttendance() {
-  // Silently trigger the data fix in the background just in case
-  api.get('fix-leaves').catch(console.error);
-
   const user = getUser();
   const isAdminUser = user && user.role === 'admin';
   let studentsList = [];

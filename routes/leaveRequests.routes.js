@@ -61,15 +61,6 @@ router.post('/', async (req, res) => {
       RETURNING id
     `, [req.user.id, start_date, end_date, reason || null]);
 
-    // Automatically mark attendance as 'on_leave' for the date range
-    await db.query(`
-      INSERT INTO attendance (user_id, attendance_date, status)
-      SELECT $1, g::date, 'on_leave'
-      FROM generate_series($2::date, $3::date, '1 day'::interval) AS g
-      ON CONFLICT (user_id, attendance_date) 
-      DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'
-    `, [req.user.id, start_date, end_date]);
-
     const requestRes = await db.query('SELECT * FROM leave_requests WHERE id = $1', [insertRes.rows[0].id]);
 
     res.status(201).json({ success: true, data: requestRes.rows[0] });
@@ -104,16 +95,9 @@ router.put('/:id', authorize('admin'), async (req, res) => {
       [status, req.user.id, id]
     );
 
-    // If approved, automatically mark attendance as 'on_leave' for the date range
-    if (status === 'approved') {
-      await db.query(`
-        INSERT INTO attendance (user_id, attendance_date, status)
-        SELECT $1, g::date, 'on_leave'
-        FROM generate_series($2::date, $3::date, '1 day'::interval) AS g
-        ON CONFLICT (user_id, attendance_date) 
-        DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'
-      `, [request.user_id, request.start_date, request.end_date]);
-    } else if (status === 'rejected') {
+    // We no longer pre-fill attendance using generate_series.
+    // Instead, attendance initialization logic handles on_leave dynamically day-by-day.
+    if (status === 'rejected') {
       await db.query(`
         UPDATE attendance
         SET status = 'absent'

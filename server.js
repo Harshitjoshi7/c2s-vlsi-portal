@@ -54,19 +54,11 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
 });
 
-app.get('/api/fix-leaves', async (req, res) => {
+app.get('/api/clean-future', async (req, res) => {
   try {
     const db = (await import('./database/db.js')).default;
-    await db.query(`
-      INSERT INTO attendance (user_id, attendance_date, status)
-      SELECT l.user_id, g::date, 'on_leave'
-      FROM leave_requests l
-      CROSS JOIN LATERAL generate_series(l.start_date::date, l.end_date::date, '1 day'::interval) AS g
-      WHERE l.status IN ('approved', 'pending')
-      ON CONFLICT (user_id, attendance_date) 
-      DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'
-    `);
-    res.json({ success: true, message: 'Past attendance records fixed successfully!' });
+    await db.query(`DELETE FROM attendance WHERE attendance_date > CURRENT_DATE`);
+    res.json({ success: true, message: 'Future attendance records cleaned successfully!' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
