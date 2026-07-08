@@ -411,11 +411,12 @@ router.get('/report', authorize('admin'), async (req, res) => {
     );
     const students = studentsRes.rows;
 
-    // Calculate total working days = distinct dates with ANY attendance record this month
+    // Calculate total working days = distinct dates with ANY attendance record this month up to today
     const workingDaysRes = await db.query(`
       SELECT COUNT(DISTINCT attendance_date) as count FROM attendance
       WHERE TO_CHAR(attendance_date, 'MM') = $1
         AND TO_CHAR(attendance_date, 'YYYY') = $2
+        AND attendance_date <= CURRENT_DATE
     `, [paddedMonth, year]);
     const totalWorkingDays = parseInt(workingDaysRes.rows[0].count, 10);
 
@@ -425,6 +426,7 @@ router.get('/report', authorize('admin'), async (req, res) => {
         WHERE user_id = $1
           AND TO_CHAR(attendance_date, 'MM') = $2
           AND TO_CHAR(attendance_date, 'YYYY') = $3
+          AND attendance_date <= CURRENT_DATE
           AND status IN ('present', 'late')
       `, [student.id, paddedMonth, year]);
 
@@ -433,6 +435,7 @@ router.get('/report', authorize('admin'), async (req, res) => {
         WHERE user_id = $1
           AND TO_CHAR(attendance_date, 'MM') = $2
           AND TO_CHAR(attendance_date, 'YYYY') = $3
+          AND attendance_date <= CURRENT_DATE
           AND status = 'late'
       `, [student.id, paddedMonth, year]);
 
@@ -441,6 +444,7 @@ router.get('/report', authorize('admin'), async (req, res) => {
         WHERE user_id = $1
           AND TO_CHAR(attendance_date, 'MM') = $2
           AND TO_CHAR(attendance_date, 'YYYY') = $3
+          AND attendance_date <= CURRENT_DATE
           AND status = 'on_leave'
       `, [student.id, paddedMonth, year]);
 

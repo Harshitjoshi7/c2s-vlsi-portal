@@ -205,10 +205,17 @@ async function initReports() {
     document.getElementById('rActiveProjects').textContent = activeProjects;
     document.getElementById('rCompletedTasks').textContent = completedTasks;
 
-    // Working days = distinct dates that have any attendance record
-    const workingDateSet = new Set(attendanceData.map(a => (a.attendance_date || '').slice(0, 10)).filter(Boolean));
+    // Working days = distinct dates that have any attendance record up to today
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const workingDateSet = new Set(
+      attendanceData
+        .map(a => (a.attendance_date || '').slice(0, 10))
+        .filter(d => d && d <= todayStr)
+    );
     const totalWorkingDays = workingDateSet.size;
-    const presentCount = attendanceData.filter(a => a.status === 'present' || a.status === 'late').length;
+    
+    // Calculate total student days up to today
+    const presentCount = attendanceData.filter(a => (a.attendance_date || '').slice(0, 10) <= todayStr && (a.status === 'present' || a.status === 'late')).length;
     const totalStudentDays = totalWorkingDays * studentsData.length;
     const avgAtt = totalStudentDays > 0 ? Math.round((presentCount / totalStudentDays) * 100) : 0;
     document.getElementById('rAvgAttendance').textContent = `${avgAtt}%`;
@@ -231,7 +238,7 @@ async function initReports() {
           p.members?.some(m => m.id === s.id || m.user_id === s.id || m.name === s.name)
         ).length;
 
-        const sAtt = attendanceData.filter(a => a.user_id === s.id);
+        const sAtt = attendanceData.filter(a => a.user_id === s.id && (a.attendance_date || '').slice(0, 10) <= todayStr);
         const sPresent = sAtt.filter(a => a.status === 'present' || a.status === 'late').length;
         const sLeaveDays = sAtt.filter(a => a.status === 'on_leave').length;
         const sEffectiveDays = Math.max(0, totalWorkingDays - sLeaveDays);

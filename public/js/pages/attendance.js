@@ -413,9 +413,15 @@ async function initAttendance() {
               </div>
             </div>
             ${isAdminUser ? `
-            <button class="btn btn-ghost btn-sm" style="color:var(--error);flex-shrink:0" onclick="unmarkAttendanceRecord(${rec.id})" title="Unmark Attendance">
-              <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-            </button>` : ''}
+            <div style="display:flex;align-items:center;gap:var(--space-sm);flex-shrink:0">
+              <select class="form-select" onchange="handleStatusChange(this.value, ${rec.id}, ${rec.user_id}, '${selectedDate}')" style="padding:2px 24px 2px 8px;font-size:0.75rem;height:26px;min-height:26px;width:100px;background:rgba(255,255,255,0.05)">
+                <option value="present" ${rec.status==='present'?'selected':''}>Present</option>
+                <option value="absent" ${rec.status==='absent'?'selected':''}>Absent</option>
+                <option value="late" ${rec.status==='late'?'selected':''}>Late</option>
+                <option value="on_leave" ${rec.status==='on_leave'?'selected':''}>On Leave</option>
+                <option value="unmark" style="color:var(--error)">Unmark (Delete)</option>
+              </select>
+            </div>` : ''}
           </div>`;
       });
     }
@@ -440,6 +446,14 @@ async function initAttendance() {
                 <span style="font-size:0.75rem;color:var(--text-muted)">Not checked in</span>
               </div>
             </div>
+            <div style="display:flex;align-items:center;gap:var(--space-sm);flex-shrink:0">
+              <select class="form-select" onchange="handleStatusChange(this.value, null, ${student.id}, '${selectedDate}')" style="padding:2px 24px 2px 8px;font-size:0.75rem;height:26px;min-height:26px;width:100px;background:rgba(255,255,255,0.05)">
+                <option value="absent" selected>Absent</option>
+                <option value="present">Present</option>
+                <option value="late">Late</option>
+                <option value="on_leave">On Leave</option>
+              </select>
+            </div>
           </div>`;
       });
     }
@@ -449,6 +463,35 @@ async function initAttendance() {
     if (window.lucide) lucide.createIcons();
   }
   
+  window.handleStatusChange = async (status, recordId, userId, date) => {
+    if (status === 'unmark') {
+      if (!recordId) return;
+      if (!confirm('Are you sure you want to unmark (delete) this attendance record?')) {
+        await loadDateAttendance(); // reset select
+        return;
+      }
+      try {
+        await api.delete(`attendance/${recordId}`);
+        showToast({ message: 'Attendance unmarked successfully.', type: 'success' });
+        await loadDateAttendance();
+        await loadAllAttendanceForCalendar();
+      } catch(err) {
+        showToast({ message: err.message || 'Failed to unmark attendance', type: 'error' });
+        await loadDateAttendance(); // reset select
+      }
+    } else {
+      try {
+        await api.post('attendance', { user_id: userId, attendance_date: date, status });
+        showToast({ message: 'Attendance updated.', type: 'success' });
+        await loadDateAttendance();
+        await loadAllAttendanceForCalendar();
+      } catch(err) {
+        showToast({ message: err.message || 'Failed to update attendance', type: 'error' });
+        await loadDateAttendance(); // reset select
+      }
+    }
+  };
+
   window.unmarkAttendanceRecord = async (id) => {
     if (!confirm('Are you sure you want to unmark (delete) this attendance record?')) return;
     try {
