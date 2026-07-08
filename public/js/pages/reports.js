@@ -128,6 +128,9 @@ function renderReports() {
 }
 
 async function initReports() {
+  // Silently trigger the data fix in the background just in case
+  api.get('fix-leaves').catch(console.error);
+
   let chartInstances = {};
   let currentReportData = null;
 
