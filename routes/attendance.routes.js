@@ -7,47 +7,22 @@ const router = Router();
 
 router.use(verifyToken);
 
-// Helper to initialize day attendance
 async function initializeDayAttendance(date) {
   try {
-    // Check if any record exists for this date
-    const existsRes = await db.query('SELECT 1 FROM attendance WHERE attendance_date = $1 LIMIT 1', [date]);
-    if (existsRes.rows.length > 0) return; // Already initialized
-
-    // Get all active students
-    const studentsRes = await db.query("SELECT id FROM users WHERE role = 'student' AND is_active = 1");
-    const students = studentsRes.rows;
-    if (students.length === 0) return;
-
-    // Get all approved leaves overlapping this date
-    const leavesRes = await db.query(`
-      SELECT user_id FROM leave_requests 
-      WHERE status = 'approved' 
-        AND start_date <= $1 
-        AND end_date >= $1
-    `, [date]);
-    const onLeaveUserIds = new Set(leavesRes.rows.map(r => r.user_id));
-
-    // Batch insert
-    const values = [];
-    let paramIndex = 1;
-    const params = [];
-
-    for (const student of students) {
-      const status = onLeaveUserIds.has(student.id) ? 'on_leave' : 'absent';
-      values.push(`($${paramIndex}, $${paramIndex+1}, $${paramIndex+2})`);
-      params.push(student.id, date, status);
-      paramIndex += 3;
-    }
-
-    if (values.length > 0) {
-      const query = `
-        INSERT INTO attendance (user_id, attendance_date, status)
-        VALUES ${values.join(', ')}
-        ON CONFLICT (user_id, attendance_date) DO NOTHING
-      `;
-      await db.query(query, params);
-    }
+    const query = `
+      INSERT INTO attendance (user_id, attendance_date, status)
+      SELECT u.id, $1::date, 
+             CASE WHEN l.user_id IS NOT NULL THEN 'on_leave' ELSE 'absent' END
+      FROM users u
+      LEFT JOIN leave_requests l 
+        ON l.user_id = u.id 
+        AND l.status IN ('approved', 'pending') 
+        AND l.start_date <= $1::date 
+        AND l.end_date >= $1::date
+      WHERE u.role = 'student' AND u.is_active = 1
+      ON CONFLICT (user_id, attendance_date) DO NOTHING
+    `;
+    await db.query(query, [date]);
   } catch (error) {
     console.error('Failed to initialize day attendance:', error);
   }
