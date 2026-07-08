@@ -12,7 +12,13 @@ window.renderPcUsage = function () {
         </h1>
         <p class="page-subtitle">Track lab PC status, tools usage, and runtime.</p>
       </div>
-      <div class="page-header-actions" style="display:flex; gap:10px;">
+      <div class="page-header-actions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="pcUsageStudentFilter" class="form-input" placeholder="Filter by Student..." style="min-width: 150px;" oninput="applyPcUsageFilters()">
+        <select id="pcUsageSort" class="form-select" style="min-width: 150px;" onchange="applyPcUsageFilters()">
+          <option value="default">Default Sort</option>
+          <option value="runtime_high">Runtime (High to Low)</option>
+          <option value="runtime_low">Runtime (Low to High)</option>
+        </select>
         <select id="pcUsageTimeFilter" class="form-select" style="min-width: 150px;">
           <option value="daily">Daily (Today)</option>
           <option value="weekly">This Week</option>
@@ -37,11 +43,18 @@ window.renderPcUsage = function () {
   `;
 };
 
+let currentPcUsageLogs = [];
+let currentPcUsageFilter = 'daily';
+
 window.initPcUsage = async function () {
   if (window.lucide) lucide.createIcons();
   await loadPcUsage();
   
   document.getElementById('pcUsageTimeFilter')?.addEventListener('change', loadPcUsage);
+};
+
+window.applyPcUsageFilters = function() {
+  renderPcUsageTable(currentPcUsageLogs, currentPcUsageFilter);
 };
 
 async function loadPcUsage() {
@@ -50,9 +63,10 @@ async function loadPcUsage() {
   
   try {
     const res = await api.get(`pc-usage?filter=${filter}`);
-    const logs = Array.isArray(res) ? res : (res?.data || []);
+    currentPcUsageLogs = Array.isArray(res) ? res : (res?.data || []);
+    currentPcUsageFilter = filter;
     
-    renderPcUsageTable(logs, filter);
+    applyPcUsageFilters();
   } catch (error) {
     console.error('Failed to load PC usage:', error);
     if (container) {
@@ -105,6 +119,22 @@ function renderPcUsageTable(logs, filter) {
 
   const displayList = Object.values(pcMap);
 
+  // Apply Student Filter
+  const studentQuery = document.getElementById('pcUsageStudentFilter')?.value.toLowerCase() || '';
+  let filteredList = displayList.filter(pc => {
+    if (!studentQuery) return true;
+    const userName = pc.user_name ? pc.user_name.toLowerCase() : '';
+    return userName.includes(studentQuery);
+  });
+
+  // Apply Sort
+  const sortVal = document.getElementById('pcUsageSort')?.value || 'default';
+  if (sortVal === 'runtime_high') {
+    filteredList.sort((a, b) => b.total_minutes_on - a.total_minutes_on);
+  } else if (sortVal === 'runtime_low') {
+    filteredList.sort((a, b) => a.total_minutes_on - b.total_minutes_on);
+  }
+
   let html = `
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;text-align:left">
@@ -121,7 +151,7 @@ function renderPcUsageTable(logs, filter) {
         <tbody>
   `;
 
-  displayList.forEach(pc => {
+  filteredList.forEach(pc => {
     const isOn = pc.status === 'on';
     const statusBadge = isOn
       ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:600;background:rgba(0,230,118,0.1);color:var(--success)"><i data-lucide="power" style="width:12px;height:12px"></i> ON</span>`
