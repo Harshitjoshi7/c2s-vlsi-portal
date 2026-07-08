@@ -210,7 +210,14 @@ async function initProfile() {
       const completedTasks = Array.isArray(tasks) ? tasks.filter(t => t.status === 'completed').length : 0;
       const totalTasks = Array.isArray(tasks) ? tasks.length : 0;
       const logCount = Array.isArray(logs) ? logs.length : 0;
-      const attPct = att?.percentage ?? att?.percent ?? 0;
+      let attPct = 0;
+      if (Array.isArray(att)) {
+        const totalAtt = att.filter(a => a.status !== 'on_leave').length;
+        const presentAtt = att.filter(a => a.status === 'present' || a.status === 'late').length;
+        attPct = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : (att.length > 0 ? 100 : 0);
+      } else if (att && (att.percentage !== undefined || att.percent !== undefined)) {
+        attPct = att.percentage ?? att.percent ?? 0;
+      }
 
       statsEl.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:var(--space-md)">

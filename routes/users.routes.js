@@ -54,8 +54,8 @@ router.get('/:id', async (req, res) => {
     const logsCountRes = await db.query('SELECT COUNT(*) as count FROM daily_logs WHERE user_id = $1', [id]);
     const logsCount = parseInt(logsCountRes.rows[0].count, 10);
 
-    // Get attendance percentage
-    const totalDaysRes = await db.query('SELECT COUNT(*) as count FROM attendance WHERE user_id = $1', [id]);
+    // Get attendance percentage (exclude leave days from denominator)
+    const totalDaysRes = await db.query("SELECT COUNT(*) as count FROM attendance WHERE user_id = $1 AND status != 'on_leave'", [id]);
     const totalDays = parseInt(totalDaysRes.rows[0].count, 10);
 
     const presentDaysRes = await db.query(

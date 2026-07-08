@@ -391,10 +391,10 @@ async function loadStudentDashboard() {
   const dueTasks = tasksData.filter(t => t.status !== 'completed' && t.status !== 'done');
   animateStat('statTasksDue', dueTasks.length);
 
-  // Calculate attendance percentage from records
-  const totalAtt = attendanceList.length;
+  // Calculate attendance percentage from records (exclude leave days)
+  const totalAtt = attendanceList.filter(a => a.status !== 'on_leave').length;
   const presentAtt = attendanceList.filter(a => a.status === 'present' || a.status === 'late').length;
-  const attPct = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
+  const attPct = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : (attendanceList.length > 0 ? 100 : 0);
   animateStat('statMyAttendance', `${attPct}%`);
 
   animateStat('statMyTickets', ticketsData.length);

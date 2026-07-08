@@ -203,8 +203,8 @@ async function initReports() {
     document.getElementById('rCompletedTasks').textContent = completedTasks;
 
     const presentCount = attendanceData.filter(a => a.status === 'present' || a.status === 'late').length;
-    const totalAtt = attendanceData.length;
-    const avgAtt = totalAtt > 0 ? Math.round((presentCount / totalAtt) * 100) : 0;
+    const totalAtt = attendanceData.filter(a => a.status !== 'on_leave').length;
+    const avgAtt = totalAtt > 0 ? Math.round((presentCount / totalAtt) * 100) : (attendanceData.length > 0 ? 100 : 0);
     document.getElementById('rAvgAttendance').textContent = `${avgAtt}%`;
 
     // Calculate currentReportData for export
@@ -227,7 +227,8 @@ async function initReports() {
 
         const sAtt = attendanceData.filter(a => a.user_id === s.id);
         const sPresent = sAtt.filter(a => a.status === 'present' || a.status === 'late').length;
-        const sAttPct = sAtt.length > 0 ? Math.round((sPresent / sAtt.length) * 100) : 0;
+        const sTotalAtt = sAtt.filter(a => a.status !== 'on_leave').length;
+        const sAttPct = sTotalAtt > 0 ? Math.round((sPresent / sTotalAtt) * 100) : (sAtt.length > 0 ? 100 : 0);
         return {
           name: s.name,
           email: s.email,

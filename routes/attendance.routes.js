@@ -399,7 +399,8 @@ router.get('/report', authorize('admin'), async (req, res) => {
       const leaveDays = parseInt(leaveDaysRes.rows[0].count, 10);
 
       const daysInMonth = new Date(parseInt(year), parseInt(paddedMonth), 0).getDate();
-      const percentage = daysInMonth > 0 ? Math.round((presentDays / daysInMonth) * 100) : 0;
+      const effectiveDays = Math.max(0, daysInMonth - leaveDays);
+      const percentage = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : (leaveDays > 0 ? 100 : 0);
 
       return {
         student_id: student.id,

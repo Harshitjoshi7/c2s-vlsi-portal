@@ -95,6 +95,23 @@ router.put('/:id', authorize('admin'), async (req, res) => {
       [status, req.user.id, id]
     );
 
+    // If approved, automatically mark attendance as 'on_leave' for the date range
+    if (status === 'approved') {
+      const startDate = new Date(request.start_date);
+      const endDate = new Date(request.end_date);
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        // Insert or update attendance record for this date
+        await db.query(`
+          INSERT INTO attendance (user_id, attendance_date, status, check_in_time)
+          VALUES ($1, $2, 'on_leave', $3)
+          ON CONFLICT (user_id, attendance_date) 
+          DO UPDATE SET status = 'on_leave'
+        `, [request.user_id, dateStr, new Date().toISOString()]);
+      }
+    }
+
     // Notify the student
     await createNotification(
       request.user_id,
