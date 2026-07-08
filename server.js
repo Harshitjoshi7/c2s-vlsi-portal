@@ -58,14 +58,13 @@ app.get('/api/fix-leaves', async (req, res) => {
   try {
     const db = (await import('./database/db.js')).default;
     await db.query(`
-      UPDATE attendance a
-      SET status = 'on_leave'
+      INSERT INTO attendance (user_id, attendance_date, status)
+      SELECT l.user_id, g::date, 'on_leave'
       FROM leave_requests l
-      WHERE a.user_id = l.user_id 
-        AND a.attendance_date >= l.start_date
-        AND a.attendance_date <= l.end_date
-        AND l.status IN ('approved', 'pending')
-        AND a.status = 'absent'
+      CROSS JOIN LATERAL generate_series(l.start_date::date, l.end_date::date, '1 day'::interval) AS g
+      WHERE l.status IN ('approved', 'pending')
+      ON CONFLICT (user_id, attendance_date) 
+      DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'
     `);
     res.json({ success: true, message: 'Past attendance records fixed successfully!' });
   } catch (e) {
