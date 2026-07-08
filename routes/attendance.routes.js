@@ -12,15 +12,18 @@ async function initializeDayAttendance(date) {
     const query = `
       INSERT INTO attendance (user_id, attendance_date, status)
       SELECT u.id, $1::date, 
-             CASE WHEN l.user_id IS NOT NULL THEN 'on_leave' ELSE 'absent' END
+             (CASE WHEN EXISTS (
+                 SELECT 1 FROM leave_requests l 
+                 WHERE l.user_id = u.id 
+                 AND l.status IN ('approved', 'pending') 
+                 AND l.start_date <= $1::date 
+                 AND l.end_date >= $1::date
+             ) THEN 'on_leave' ELSE 'absent' END)
       FROM users u
-      LEFT JOIN leave_requests l 
-        ON l.user_id = u.id 
-        AND l.status IN ('approved', 'pending') 
-        AND l.start_date <= $1::date 
-        AND l.end_date >= $1::date
       WHERE u.role = 'student' AND u.is_active = 1
-      ON CONFLICT (user_id, attendance_date) DO NOTHING
+      ON CONFLICT (user_id, attendance_date) 
+      DO UPDATE SET status = EXCLUDED.status 
+      WHERE attendance.status = 'absent' AND EXCLUDED.status = 'on_leave'
     `;
     await db.query(query, [date]);
   } catch (error) {

@@ -61,6 +61,15 @@ router.post('/', async (req, res) => {
       RETURNING id
     `, [req.user.id, start_date, end_date, reason || null]);
 
+    // Automatically mark attendance as 'on_leave' for the date range
+    await db.query(`
+      INSERT INTO attendance (user_id, attendance_date, status)
+      SELECT $1, g::date, 'on_leave'
+      FROM generate_series($2::date, $3::date, '1 day'::interval) AS g
+      ON CONFLICT (user_id, attendance_date) 
+      DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'
+    `, [req.user.id, start_date, end_date]);
+
     const requestRes = await db.query('SELECT * FROM leave_requests WHERE id = $1', [insertRes.rows[0].id]);
 
     res.status(201).json({ success: true, data: requestRes.rows[0] });
@@ -97,19 +106,22 @@ router.put('/:id', authorize('admin'), async (req, res) => {
 
     // If approved, automatically mark attendance as 'on_leave' for the date range
     if (status === 'approved') {
-      const startDate = new Date(request.start_date);
-      const endDate = new Date(request.end_date);
-      
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
-        // Insert or update attendance record for this date
-        await db.query(`
-          INSERT INTO attendance (user_id, attendance_date, status, check_in_time)
-          VALUES ($1, $2, 'on_leave', $3)
-          ON CONFLICT (user_id, attendance_date) 
-          DO UPDATE SET status = 'on_leave'
-        `, [request.user_id, dateStr, new Date().toISOString()]);
-      }
+      await db.query(`
+        INSERT INTO attendance (user_id, attendance_date, status)
+        SELECT $1, g::date, 'on_leave'
+        FROM generate_series($2::date, $3::date, '1 day'::interval) AS g
+        ON CONFLICT (user_id, attendance_date) 
+        DO UPDATE SET status = 'on_leave' WHERE attendance.status = 'absent'
+      `, [request.user_id, request.start_date, request.end_date]);
+    } else if (status === 'rejected') {
+      await db.query(`
+        UPDATE attendance
+        SET status = 'absent'
+        WHERE user_id = $1
+          AND attendance_date >= $2::date
+          AND attendance_date <= $3::date
+          AND status = 'on_leave'
+      `, [request.user_id, request.start_date, request.end_date]);
     }
 
     // Notify the student

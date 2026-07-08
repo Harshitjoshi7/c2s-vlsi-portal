@@ -54,6 +54,25 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
 });
 
+app.get('/api/fix-leaves', async (req, res) => {
+  try {
+    const db = (await import('./database/db.js')).default;
+    await db.query(`
+      UPDATE attendance a
+      SET status = 'on_leave'
+      FROM leave_requests l
+      WHERE a.user_id = l.user_id 
+        AND a.attendance_date >= l.start_date
+        AND a.attendance_date <= l.end_date
+        AND l.status IN ('approved', 'pending')
+        AND a.status = 'absent'
+    `);
+    res.json({ success: true, message: 'Past attendance records fixed successfully!' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Public Project API (For QR code scanning, unauthenticated)
 import db from './database/db.js';
 
