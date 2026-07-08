@@ -169,6 +169,7 @@ function renderPcUsageTable(logs, filter) {
         <td style="padding:var(--space-md)">
           <select id="tool-select-${pc.pc_id}" class="form-select" style="max-width:150px;font-size:0.8rem;padding:4px;" ${isOn ? 'disabled' : ''}>
             <option value="">Select Tool</option>
+            <option value="Cadence" ${pc.tool_used === 'Cadence' ? 'selected' : ''}>Cadence</option>
             <option value="Cadence Virtuoso" ${pc.tool_used === 'Cadence Virtuoso' ? 'selected' : ''}>Cadence Virtuoso</option>
             <option value="Xcelium" ${pc.tool_used === 'Xcelium' ? 'selected' : ''}>Xcelium</option>
             <option value="Innovus" ${pc.tool_used === 'Innovus' ? 'selected' : ''}>Innovus</option>
