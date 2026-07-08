@@ -475,7 +475,8 @@ async function initReports() {
 
       const stuAtt = attendance.filter(a => a.user_id === s.id);
       const presentAtt = stuAtt.filter(a => a.status === 'present' || a.status === 'late').length;
-      const attPct = stuAtt.length ? Math.round((presentAtt / stuAtt.length) * 100) : 0;
+      const effectiveAtt = stuAtt.filter(a => a.status !== 'on_leave').length;
+      const attPct = effectiveAtt > 0 ? Math.round((presentAtt / effectiveAtt) * 100) : (stuAtt.length > 0 ? 100 : 0);
       const initials = s.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
       return { student: s, completedTasks, totalTasks: stuTasks.length, stuProjects, attPct, initials };

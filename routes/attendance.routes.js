@@ -7,11 +7,59 @@ const router = Router();
 
 router.use(verifyToken);
 
+// Helper to initialize day attendance
+async function initializeDayAttendance(date) {
+  try {
+    // Check if any record exists for this date
+    const existsRes = await db.query('SELECT 1 FROM attendance WHERE attendance_date = $1 LIMIT 1', [date]);
+    if (existsRes.rows.length > 0) return; // Already initialized
+
+    // Get all active students
+    const studentsRes = await db.query("SELECT id FROM users WHERE role = 'student' AND is_active = 1");
+    const students = studentsRes.rows;
+    if (students.length === 0) return;
+
+    // Get all approved leaves overlapping this date
+    const leavesRes = await db.query(`
+      SELECT user_id FROM leave_requests 
+      WHERE status = 'approved' 
+        AND start_date <= $1 
+        AND end_date >= $1
+    `, [date]);
+    const onLeaveUserIds = new Set(leavesRes.rows.map(r => r.user_id));
+
+    // Batch insert
+    const values = [];
+    let paramIndex = 1;
+    const params = [];
+
+    for (const student of students) {
+      const status = onLeaveUserIds.has(student.id) ? 'on_leave' : 'absent';
+      values.push(`($${paramIndex}, $${paramIndex+1}, $${paramIndex+2})`);
+      params.push(student.id, date, status);
+      paramIndex += 3;
+    }
+
+    if (values.length > 0) {
+      const query = `
+        INSERT INTO attendance (user_id, attendance_date, status)
+        VALUES ${values.join(', ')}
+        ON CONFLICT (user_id, attendance_date) DO NOTHING
+      `;
+      await db.query(query, params);
+    }
+  } catch (error) {
+    console.error('Failed to initialize day attendance:', error);
+  }
+}
+
 // POST /api/attendance/check-in — student checks in
 router.post('/check-in', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
+
+    await initializeDayAttendance(today);
 
     // Check if already checked in today
     const existingRes = await db.query(
@@ -19,15 +67,24 @@ router.post('/check-in', async (req, res) => {
       [req.user.id, today]
     );
 
+    let insertRes;
     if (existingRes.rows[0]) {
-      return res.status(409).json({ success: false, error: 'Already checked in for today.' });
+      const existing = existingRes.rows[0];
+      if (existing.status === 'present' || existing.status === 'late') {
+        return res.status(409).json({ success: false, error: 'Already checked in for today.' });
+      } else {
+        insertRes = await db.query(`
+          UPDATE attendance SET status = 'present', check_in_time = $2 
+          WHERE id = $1 RETURNING id
+        `, [existing.id, now]);
+      }
+    } else {
+      insertRes = await db.query(`
+        INSERT INTO attendance (user_id, attendance_date, status, check_in_time)
+        VALUES ($1, $2, 'present', $3)
+        RETURNING id
+      `, [req.user.id, today, now]);
     }
-
-    const insertRes = await db.query(`
-      INSERT INTO attendance (user_id, attendance_date, status, check_in_time)
-      VALUES ($1, $2, 'present', $3)
-      RETURNING id
-    `, [req.user.id, today, now]);
 
     const recordRes = await db.query('SELECT * FROM attendance WHERE id = $1', [insertRes.rows[0].id]);
 
@@ -95,28 +152,43 @@ router.post('/', async (req, res) => {
     }
 
     const date = attendance_date || new Date().toISOString().split('T')[0];
+    await initializeDayAttendance(date);
 
     const existingRes = await db.query(
       'SELECT * FROM attendance WHERE user_id = $1 AND attendance_date = $2',
       [uid, date]
     );
 
-    if (existingRes.rows[0]) {
-      return res.status(409).json({ success: false, error: 'Attendance already recorded for this date.' });
-    }
-
     const finalStatus = status || 'present';
-    const insertRes = await db.query(`
-      INSERT INTO attendance (user_id, attendance_date, status, check_in_time, check_out_time)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id
-    `, [
-      uid,
-      date,
-      finalStatus,
-      check_in_time || new Date().toISOString(),
-      check_out_time || null,
-    ]);
+    const cTime = check_in_time || (finalStatus === 'present' || finalStatus === 'late' ? new Date().toISOString() : null);
+    const coTime = check_out_time || null;
+    let insertRes;
+
+    if (existingRes.rows[0]) {
+      insertRes = await db.query(`
+        UPDATE attendance 
+        SET status = $1, check_in_time = COALESCE($2, check_in_time), check_out_time = COALESCE($3, check_out_time)
+        WHERE id = $4
+        RETURNING id
+      `, [
+        finalStatus,
+        cTime,
+        coTime,
+        existingRes.rows[0].id
+      ]);
+    } else {
+      insertRes = await db.query(`
+        INSERT INTO attendance (user_id, attendance_date, status, check_in_time, check_out_time)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+      `, [
+        uid,
+        date,
+        finalStatus,
+        cTime,
+        coTime,
+      ]);
+    }
 
     const recordRes = await db.query('SELECT * FROM attendance WHERE id = $1', [insertRes.rows[0].id]);
 
@@ -399,7 +471,7 @@ router.get('/report', authorize('admin'), async (req, res) => {
       const leaveDays = parseInt(leaveDaysRes.rows[0].count, 10);
 
       const daysInMonth = new Date(parseInt(year), parseInt(paddedMonth), 0).getDate();
-      const effectiveDays = Math.max(0, daysInMonth - leaveDays);
+      const effectiveDays = Math.max(0, totalRecords - leaveDays);
       const percentage = effectiveDays > 0 ? Math.round((presentDays / effectiveDays) * 100) : (leaveDays > 0 ? 100 : 0);
 
       return {
