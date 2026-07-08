@@ -264,17 +264,21 @@ router.get('/today', authorize('admin'), async (req, res) => {
 
     const checkedInIds = new Set(attendance.map((a) => a.user_id));
     const absent = allStudents.filter((s) => !checkedInIds.has(s.id));
+    const presentCount = attendance.filter(a => a.status === 'present' || a.status === 'late').length;
+    const leaveCount = attendance.filter(a => a.status === 'on_leave').length;
+    const absentCount = attendance.filter(a => a.status === 'absent').length + absent.length;
 
     res.json({
       success: true,
       data: {
         date: today,
-        present: attendance,
-        absent,
+        present: attendance.filter(a => a.status !== 'absent' && a.status !== 'on_leave'),
+        absent: attendance.filter(a => a.status === 'absent').map(a => ({ ...a, name: a.user_name })).concat(absent),
         summary: {
           total_students: allStudents.length,
-          present_count: attendance.length,
-          absent_count: absent.length,
+          present_count: presentCount,
+          absent_count: absentCount,
+          leave_count: leaveCount,
         },
       },
     });
