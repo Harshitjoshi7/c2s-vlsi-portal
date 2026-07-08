@@ -20,20 +20,31 @@ router.get('/', async (req, res) => {
       dateCondition = "u.usage_date >= date_trunc('month', $1::date) AND u.usage_date < date_trunc('month', $1::date) + interval '1 month'";
     }
 
-    let query = `
-      SELECT u.*, p.pc_name, s.name as user_name
-      FROM pc_usage_logs u
-      JOIN pcs p ON u.pc_id = p.id
-      JOIN users s ON u.user_id = s.id
-      WHERE ${dateCondition}
-    `;
-
-    if (!isAdmin) {
-      query += ` AND u.user_id = $2`;
+    let query;
+    if (isAdmin) {
+      query = `
+        SELECT p.id as pc_id, p.pc_name,
+               a.user_id as assigned_user_id, s.name as user_name,
+               u.id as log_id, u.usage_date, COALESCE(u.status, 'off') as status, u.tool_used, COALESCE(u.total_minutes_on, 0) as total_minutes_on
+        FROM pcs p
+        LEFT JOIN pc_assignments a ON p.id = a.pc_id AND a.status = 'active'
+        LEFT JOIN users s ON a.user_id = s.id
+        LEFT JOIN pc_usage_logs u ON p.id = u.pc_id AND ${dateCondition}
+        ORDER BY p.pc_name ASC, u.usage_date DESC
+      `;
+    } else {
+      query = `
+        SELECT p.id as pc_id, p.pc_name,
+               a.user_id as assigned_user_id, s.name as user_name,
+               u.id as log_id, u.usage_date, COALESCE(u.status, 'off') as status, u.tool_used, COALESCE(u.total_minutes_on, 0) as total_minutes_on
+        FROM pcs p
+        JOIN pc_assignments a ON p.id = a.pc_id AND a.status = 'active' AND a.user_id = $2
+        JOIN users s ON a.user_id = s.id
+        LEFT JOIN pc_usage_logs u ON p.id = u.pc_id AND ${dateCondition}
+        ORDER BY p.pc_name ASC, u.usage_date DESC
+      `;
       queryParams.push(req.user.id);
     }
-
-    query += ` ORDER BY u.usage_date DESC, p.pc_name ASC`;
 
     const result = await db.query(query, queryParams);
     res.json({ success: true, data: result.rows });
