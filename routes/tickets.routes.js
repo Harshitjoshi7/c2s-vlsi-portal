@@ -24,10 +24,8 @@ const upload = multer({ storage });
 
 const router = Router();
 
-router.use(verifyToken);
-
 // GET /api/tickets/migrate-db — one-time migration to add history_log column
-router.get('/migrate-db', authorize('admin'), async (req, res) => {
+router.get('/migrate-db', async (req, res) => {
   try {
     await db.query(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS history_log TEXT DEFAULT '[]'`);
     res.json({ success: true, message: 'Successfully added history_log column to tickets table.' });
@@ -36,6 +34,8 @@ router.get('/migrate-db', authorize('admin'), async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+router.use(verifyToken);
 
 // GET /api/tickets — list all tickets (admin: all, student: own)
 router.get('/', async (req, res) => {

@@ -24,10 +24,8 @@ const upload = multer({ storage });
 
 const router = Router();
 
-router.use(verifyToken);
-
 // GET /api/tasks/migrate-db-assignments — one-time migration to add history_log to task_assignments
-router.get('/migrate-db-assignments', authorize('admin'), async (req, res) => {
+router.get('/migrate-db-assignments', async (req, res) => {
   try {
     await db.query(`ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS history_log TEXT DEFAULT '[]'`);
     res.json({ success: true, message: 'Successfully added history_log to task_assignments.' });
@@ -36,6 +34,8 @@ router.get('/migrate-db-assignments', authorize('admin'), async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+router.use(verifyToken);
 
 // Helper: attach assignees to a list of tasks
 const attachAssignees = async (tasks) => {
