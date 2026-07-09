@@ -28,7 +28,16 @@ const router = Router();
 router.get('/migrate-db-assignments', async (req, res) => {
   try {
     await db.query(`ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS history_log TEXT DEFAULT '[]'`);
-    res.json({ success: true, message: 'Successfully added history_log to task_assignments.' });
+    
+    // Also drop the old CHECK constraints that didn't allow 'needs_revision'
+    try {
+      await db.query(`ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check`);
+    } catch(e) {}
+    try {
+      await db.query(`ALTER TABLE task_assignments DROP CONSTRAINT IF EXISTS task_assignments_status_check`);
+    } catch(e) {}
+    
+    res.json({ success: true, message: 'Successfully migrated db (added history_log and dropped strict status constraints).' });
   } catch (err) {
     console.error('Migrate assignments db error:', err);
     res.status(500).json({ success: false, error: err.message });
