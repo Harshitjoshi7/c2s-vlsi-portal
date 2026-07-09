@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS task_assignments (
 CREATE TABLE IF NOT EXISTS pcs (
   id SERIAL PRIMARY KEY,
   pc_name TEXT NOT NULL UNIQUE,
+  ip_address TEXT,
+  student_id_label TEXT,
   specs TEXT DEFAULT '{}',
   installed_software TEXT DEFAULT '[]',
   condition TEXT CHECK(condition IN ('excellent', 'good', 'fair', 'needs_repair')) DEFAULT 'good',

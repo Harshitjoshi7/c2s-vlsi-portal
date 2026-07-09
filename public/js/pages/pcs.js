@@ -130,6 +130,14 @@ function renderPCs() {
                 <input type="text" class="form-input" id="pcSoftware" placeholder="e.g. Cadence Virtuoso, HSPICE, Vivado" />
               </div>
               <div class="form-group">
+                <label class="form-label">IP Address</label>
+                <input type="text" class="form-input" id="pcIpAddress" placeholder="e.g. 192.168.1.100" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Student ID (Label)</label>
+                <input type="text" class="form-input" id="pcStudentIdLabel" placeholder="e.g. ENROLL-2023-XYZ" />
+              </div>
+              <div class="form-group">
                 <label class="form-label">Condition</label>
                 <select class="form-select" id="pcCondition">
                   <option value="good">Good</option>
@@ -150,6 +158,37 @@ function renderPCs() {
           <button class="btn btn-primary" id="pcSubmitBtn">
             <span id="pcSubmitText">Add PC</span>
             <div class="spinner" id="pcSubmitSpinner" style="display:none"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div class="modal-overlay" id="studentDetailsModalOverlay" style="display:none">
+      <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+          <h3 class="modal-title">Update PC Details</h3>
+          <button class="modal-close" id="studentDetailsModalClose">
+            <i data-lucide="x" style="width:20px;height:20px"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="studentDetailsForm">
+            <div class="form-group">
+              <label class="form-label">IP Address</label>
+              <input type="text" class="form-input" id="sdIpAddress" placeholder="e.g. 192.168.1.100" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Student ID</label>
+              <input type="text" class="form-input" id="sdStudentIdLabel" placeholder="Enter your Student/Enrollment ID" />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="studentDetailsCancel">Cancel</button>
+          <button class="btn btn-primary" id="studentDetailsSubmitBtn">
+            <span id="studentDetailsSubmitText">Save Details</span>
+            <div class="spinner" id="studentDetailsSpinner" style="display:none"></div>
           </button>
         </div>
       </div>
@@ -303,7 +342,11 @@ async function initPCs() {
 
                 <h4 style="margin:0 0 var(--space-sm);font-size:1rem">${pcName}</h4>
 
-                ${specsStr ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:var(--space-sm)"><i data-lucide="cpu" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>${specsStr}</div>` : ''}
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:var(--space-sm);display:flex;flex-direction:column;gap:4px">
+                  ${specsStr ? `<div><i data-lucide="cpu" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>${specsStr}</div>` : ''}
+                  <div><i data-lucide="globe" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>IP: <span style="font-weight:600;color:var(--text-primary)">${pc.ip_address || 'Not set'}</span></div>
+                  <div><i data-lucide="hash" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>Student ID: <span style="font-weight:600;color:var(--text-primary)">${pc.student_id_label || 'Not set'}</span></div>
+                </div>
 
                 ${software.length > 0 ? `
                 <div class="grid" style="grid-template-columns:repeat(auto-fill, minmax(80px, 1fr)); gap:4px; margin-bottom:var(--space-sm)">
@@ -326,11 +369,15 @@ async function initPCs() {
 
                 ${pc.notes ? `<div style="margin-top:var(--space-md);padding:var(--space-sm);background:rgba(255,255,255,0.03);border-radius:var(--border-radius-sm);border:1px solid var(--border-color);font-size:0.78rem;color:var(--text-muted);line-height:1.5">${pc.notes}</div>` : ''}
 
-                ${!isAdminUser ? `
-                <div style="margin-top:var(--space-md)">
-                  <button class="btn btn-secondary btn-sm" onclick="reportIssueForPC(${pc.id})" style="width:100%">
+                ${!isAdminUser && assignee ? `
+                <div style="margin-top:var(--space-md); display:flex; gap:8px;">
+                  <button class="btn btn-secondary btn-sm" onclick="reportIssueForPC(${pc.id})" style="flex:1;">
                     <i data-lucide="ticket" style="width:14px;height:14px"></i>
                     Report Issue
+                  </button>
+                  <button class="btn btn-ghost btn-sm" onclick="openStudentDetails(${pc.id})" style="flex:1; border: 1px solid var(--border-color);">
+                    <i data-lucide="edit-3" style="width:14px;height:14px"></i>
+                    Update Details
                   </button>
                 </div>` : ''}
               </div>
@@ -388,6 +435,10 @@ async function initPCs() {
     document.getElementById('pcModalTitle').textContent = pc ? 'Edit PC' : 'Add PC';
     document.getElementById('pcName').value = pc?.pc_name || '';
     document.getElementById('pcName').disabled = (!isAdminUser && pc);
+    
+    document.getElementById('pcIpAddress').value = pc?.ip_address || '';
+    document.getElementById('pcStudentIdLabel').value = pc?.student_id_label || '';
+
     // Parse specs
     const specsObj = pc ? (() => { try { return JSON.parse(pc.specs || '{}'); } catch { return {}; }})() : {};
     document.getElementById('pcSpecs').value = typeof specsObj === 'string' ? specsObj : Object.entries(specsObj).map(([k,v])=>`${k}: ${v}`).join(', ');
@@ -402,10 +453,62 @@ async function initPCs() {
 
   function closeModal() { overlay.style.display = 'none'; editingPCId = null; }
 
-  document.getElementById('newPCBtn')?.addEventListener('click', () => openModal());
+  document.getElementById('newPCBtn')?.addEventListener('click', () => openModal(null));
   document.getElementById('pcModalClose')?.addEventListener('click', closeModal);
   document.getElementById('pcModalCancel')?.addEventListener('click', closeModal);
   overlay?.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  // ── Student Details Modal ──
+  const sdOverlay = document.getElementById('studentDetailsModalOverlay');
+  
+  window.openStudentDetails = (id) => {
+    const pc = allPCs.find(p => p.id === id);
+    if (!pc) return;
+    editingPCId = id;
+    document.getElementById('sdIpAddress').value = pc.ip_address || '';
+    document.getElementById('sdStudentIdLabel').value = pc.student_id_label || '';
+    sdOverlay.style.display = 'flex';
+  };
+
+  const closeSdModal = () => {
+    sdOverlay.style.display = 'none';
+    editingPCId = null;
+  };
+
+  const submitSdForm = async (e) => {
+    e.preventDefault();
+    if (!editingPCId) return;
+
+    const payload = {
+      ip_address: document.getElementById('sdIpAddress').value.trim(),
+      student_id_label: document.getElementById('sdStudentIdLabel').value.trim()
+    };
+
+    const btn = document.getElementById('studentDetailsSubmitBtn');
+    const spinner = document.getElementById('studentDetailsSpinner');
+    const text = document.getElementById('studentDetailsSubmitText');
+
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+    text.style.opacity = '0';
+
+    try {
+      const res = await api.put(`pcs/${editingPCId}/student-details`, payload);
+      showToast({ message: 'Details updated successfully!', type: 'success' });
+      closeSdModal();
+      loadPCs();
+    } catch (err) {
+      showToast({ message: err.message || 'Failed to update details', type: 'error' });
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      text.style.opacity = '1';
+    }
+  };
+
+  document.getElementById('studentDetailsModalClose')?.addEventListener('click', closeSdModal);
+  document.getElementById('studentDetailsCancel')?.addEventListener('click', closeSdModal);
+  document.getElementById('studentDetailsForm')?.addEventListener('submit', submitSdForm);
 
   document.getElementById('pcSubmitBtn')?.addEventListener('click', async () => {
     const pc_name = document.getElementById('pcName').value.trim();
@@ -418,11 +521,12 @@ async function initPCs() {
     const payload = {
       specs: specsRaw ? { description: specsRaw } : {},
       installed_software,
+      ip_address: document.getElementById('pcIpAddress').value.trim(),
+      student_id_label: document.getElementById('pcStudentIdLabel').value.trim(),
       condition: document.getElementById('pcCondition').value,
       notes: document.getElementById('pcNotes').value.trim() || null,
     };
     
-    // Only send pc_name if admin or creating
     if (isAdminUser || !editingPCId) {
       payload.pc_name = pc_name;
     }

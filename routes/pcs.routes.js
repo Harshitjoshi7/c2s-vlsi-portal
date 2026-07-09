@@ -7,6 +7,18 @@ const router = Router();
 
 router.use(verifyToken);
 
+// GET /api/pcs/migrate-db — one-time migration to add ip_address and student_id_label
+router.get('/migrate-db', async (req, res) => {
+  try {
+    await db.query(`ALTER TABLE pcs ADD COLUMN IF NOT EXISTS ip_address TEXT`);
+    await db.query(`ALTER TABLE pcs ADD COLUMN IF NOT EXISTS student_id_label TEXT`);
+    res.json({ success: true, message: 'Successfully added ip_address and student_id_label to pcs.' });
+  } catch (err) {
+    console.error('Migrate pcs db error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/pcs — list all PCs with current assignments
 router.get('/', async (req, res) => {
   try {
@@ -37,7 +49,7 @@ router.get('/', async (req, res) => {
 router.get('/my', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT pa.*, p.pc_name, p.specs, p.installed_software, p.condition, p.notes
+      SELECT pa.*, p.pc_name, p.specs, p.installed_software, p.condition, p.notes, p.ip_address, p.student_id_label
       FROM pc_assignments pa
       JOIN pcs p ON pa.pc_id = p.id
       WHERE pa.user_id = $1 AND pa.status = 'active'
@@ -53,7 +65,7 @@ router.get('/my', async (req, res) => {
 // POST /api/pcs — add a PC (admin only)
 router.post('/', authorize('admin'), async (req, res) => {
   try {
-    const { pc_name, specs, installed_software, condition, notes } = req.body;
+    const { pc_name, ip_address, student_id_label, specs, installed_software, condition, notes } = req.body;
 
     if (!pc_name || !pc_name.trim()) {
       return res.status(400).json({ success: false, error: 'PC name is required.' });
@@ -65,11 +77,13 @@ router.post('/', authorize('admin'), async (req, res) => {
     }
 
     const insertRes = await db.query(`
-      INSERT INTO pcs (pc_name, specs, installed_software, condition, notes)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO pcs (pc_name, ip_address, student_id_label, specs, installed_software, condition, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id
     `, [
       pc_name,
+      ip_address || null,
+      student_id_label || null,
       specs ? JSON.stringify(specs) : '{}',
       installed_software ? JSON.stringify(installed_software) : '[]',
       condition || 'good',
@@ -85,31 +99,18 @@ router.post('/', authorize('admin'), async (req, res) => {
   }
 });
 
-// PUT /api/pcs/:id — update PC details (admin or assigned student)
-router.put('/:id', async (req, res) => {
+// PUT /api/pcs/:id — update PC details (admin)
+router.put('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { pc_name, specs, installed_software, condition, notes } = req.body;
-    const isAdmin = req.user.role === 'admin';
+    const { pc_name, ip_address, student_id_label, specs, installed_software, condition, notes } = req.body;
 
     const pcRes = await db.query('SELECT * FROM pcs WHERE id = $1', [id]);
     if (!pcRes.rows[0]) {
       return res.status(404).json({ success: false, error: 'PC not found.' });
     }
 
-    if (!isAdmin) {
-      // Check if student is assigned to this PC
-      const assignmentRes = await db.query(
-        "SELECT id FROM pc_assignments WHERE pc_id = $1 AND user_id = $2 AND status = 'active'",
-        [id, req.user.id]
-      );
-      if (!assignmentRes.rows[0]) {
-        return res.status(403).json({ success: false, error: 'You are not authorized to edit this PC.' });
-      }
-      if (pc_name) {
-        return res.status(403).json({ success: false, error: 'Students cannot change the PC name.' });
-      }
-    } else if (pc_name) {
+    if (pc_name) {
       const nameExistsRes = await db.query('SELECT id FROM pcs WHERE pc_name = $1 AND id != $2', [pc_name, id]);
       if (nameExistsRes.rows[0]) {
         return res.status(409).json({ success: false, error: 'PC name already in use.' });
@@ -119,13 +120,17 @@ router.put('/:id', async (req, res) => {
     await db.query(`
       UPDATE pcs SET
         pc_name = COALESCE($1, pc_name),
-        specs = COALESCE($2, specs),
-        installed_software = COALESCE($3, installed_software),
-        condition = COALESCE($4, condition),
-        notes = COALESCE($5, notes)
-      WHERE id = $6
+        ip_address = COALESCE($2, ip_address),
+        student_id_label = COALESCE($3, student_id_label),
+        specs = COALESCE($4, specs),
+        installed_software = COALESCE($5, installed_software),
+        condition = COALESCE($6, condition),
+        notes = COALESCE($7, notes)
+      WHERE id = $8
     `, [
       pc_name || null,
+      ip_address !== undefined ? ip_address : null,
+      student_id_label !== undefined ? student_id_label : null,
       specs ? JSON.stringify(specs) : null,
       installed_software ? JSON.stringify(installed_software) : null,
       condition || null,
@@ -138,6 +143,46 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, data: updatedRes.rows[0] });
   } catch (error) {
     console.error('Update PC error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// PUT /api/pcs/:id/student-details — update PC IP and Student ID (assigned student)
+router.put('/:id/student-details', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ip_address, student_id_label } = req.body;
+
+    const pcRes = await db.query('SELECT * FROM pcs WHERE id = $1', [id]);
+    if (!pcRes.rows[0]) {
+      return res.status(404).json({ success: false, error: 'PC not found.' });
+    }
+
+    // Check if student is assigned to this PC
+    const assignmentRes = await db.query(
+      "SELECT id FROM pc_assignments WHERE pc_id = $1 AND user_id = $2 AND status = 'active'",
+      [id, req.user.id]
+    );
+    if (!assignmentRes.rows[0] && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'You are not authorized to edit this PC.' });
+    }
+
+    await db.query(`
+      UPDATE pcs SET
+        ip_address = COALESCE($1, ip_address),
+        student_id_label = COALESCE($2, student_id_label)
+      WHERE id = $3
+    `, [
+      ip_address !== undefined ? ip_address : null,
+      student_id_label !== undefined ? student_id_label : null,
+      id,
+    ]);
+
+    const updatedRes = await db.query('SELECT * FROM pcs WHERE id = $1', [id]);
+
+    res.json({ success: true, data: updatedRes.rows[0] });
+  } catch (error) {
+    console.error('Update PC Student details error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
