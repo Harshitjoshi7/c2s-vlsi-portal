@@ -783,7 +783,7 @@ async function initTasks() {
       if (message) formData.append('message', message);
       if (imageFile) formData.append('image', imageFile);
       
-      await api.post(`tasks/${taskId}/history`, { body: formData });
+      await api.post(`tasks/${taskId}/history`, formData);
       showToast({ message: 'Update posted successfully.', type: 'success' });
       
       // Reload specific task if possible, or reload all
@@ -889,7 +889,7 @@ async function initTasks() {
       // Also push a history update
       const fd = new FormData();
       fd.append('status_change', status);
-      await api.post(`tasks/${id}/history`, { body: fd });
+      await api.post(`tasks/${id}/history`, fd);
       
       showToast({ message: 'Status updated seamlessly!', type: 'success' });
       await loadTasks(); 

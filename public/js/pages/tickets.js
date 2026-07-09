@@ -523,14 +523,7 @@ async function initTickets() {
     btn.disabled = true;
     
     try {
-      const res = await fetch(`/api/tickets/${editingTicketId}/history`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-      const data = await res.json();
+      const data = await api.post(`tickets/${editingTicketId}/history`, formData);
       if (data.success) {
         document.getElementById('ticketHistoryMessage').value = '';
         imageInput.value = '';
@@ -554,7 +547,7 @@ async function initTickets() {
         showToast({ message: data.error || 'Failed to post update', type: 'error' });
       }
     } catch (e) {
-      showToast({ message: 'Error posting update', type: 'error' });
+      showToast({ message: e.message || 'Error posting update', type: 'error' });
     } finally {
       btn.innerHTML = originalText;
       btn.disabled = false;

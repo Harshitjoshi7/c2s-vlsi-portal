@@ -26,6 +26,40 @@ const router = Router();
 
 router.use(verifyToken);
 
+// GET /api/tasks/migrate-old — one-time migration to split old shared tasks
+router.get('/migrate-old', authorize('admin'), async (req, res) => {
+  try {
+    const tasksRes = await db.query('SELECT * FROM tasks');
+    let migratedCount = 0;
+
+    for (const task of tasksRes.rows) {
+      const assignsRes = await db.query('SELECT * FROM task_assignments WHERE task_id = $1 ORDER BY id ASC', [task.id]);
+      const assigns = assignsRes.rows;
+
+      if (assigns.length > 1) {
+        // Leave the first assignment alone, duplicate for the rest
+        for (let i = 1; i < assigns.length; i++) {
+          const a = assigns[i];
+          const insertRes = await db.query(`
+            INSERT INTO tasks (title, description, status, assigned_by, priority, category, deadline, attachments, history_log)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id
+          `, [
+            task.title, task.description, a.status, task.assigned_by, task.priority, task.category, task.deadline, task.attachments, task.history_log
+          ]);
+          const newTaskId = insertRes.rows[0].id;
+          await db.query('UPDATE task_assignments SET task_id = $1 WHERE id = $2', [newTaskId, a.id]);
+          migratedCount++;
+        }
+      }
+    }
+    res.json({ success: true, message: `Successfully split ${migratedCount} task assignments into their own individual tasks.` });
+  } catch (err) {
+    console.error('Migrate tasks error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Helper: attach assignees to a list of tasks
 const attachAssignees = async (tasks) => {
   if (!tasks || tasks.length === 0) return tasks;
