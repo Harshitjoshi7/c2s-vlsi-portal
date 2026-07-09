@@ -341,7 +341,7 @@ async function initTasks() {
                         </div>
                       ` : '<span style="color:var(--text-muted);font-style:italic; padding: 4px 10px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 0.8rem;">Unassigned</span>'}
                     </td>
-                    <td style="padding:16px;vertical-align:middle;cursor:pointer" onclick="viewTask(${task.id})">
+                    <td style="padding:16px;vertical-align:middle;cursor:pointer" onclick="viewTask(${task.id}, ${student ? student.assignment_id : 'null'})">
                       <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px; font-size: 1rem;">${task.title}</div>
                       ${task.category ? `<span class="badge badge-info" style="font-size:0.7rem; padding: 2px 8px; border-radius: 12px; background: rgba(79,143,255,0.1); color: var(--info); border: 1px solid rgba(79,143,255,0.2);">${task.category}</span>` : ''}
                     </td>
@@ -350,7 +350,7 @@ async function initTasks() {
                     </td>
                     <td style="padding:16px;vertical-align:middle">
                       ${student ? `
-                      <select class="form-select btn-sm" style="width:auto;padding:6px 28px 6px 12px;font-size:0.8rem;border-radius:20px;background:${st.bg};color:${st.color};border:1px solid ${st.color}44;font-weight:600; cursor: pointer; transition: all 0.2s;" onchange="updateTaskStatus(${task.id}, this.value, ${student.id})" onmouseover="this.style.boxShadow='0 2px 8px ${st.color}33'" onmouseout="this.style.boxShadow='none'">
+                      <select class="form-select btn-sm" style="width:auto;padding:6px 28px 6px 12px;font-size:0.8rem;border-radius:20px;background:${st.bg};color:${st.color};border:1px solid ${st.color}44;font-weight:600; cursor: pointer; transition: all 0.2s;" onchange="updateTaskStatus(${task.id}, this.value, ${student.id}, ${student.assignment_id})" onmouseover="this.style.boxShadow='0 2px 8px ${st.color}33'" onmouseout="this.style.boxShadow='none'">
                         <option value="assigned" ${student.status === 'assigned' ? 'selected' : ''}>Assigned</option>
                         <option value="in_progress" ${student.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
                         <option value="under_review" ${student.status === 'under_review' ? 'selected' : ''}>Under Review</option>
@@ -391,7 +391,7 @@ async function initTasks() {
             const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
 
             return `
-              <div class="card hover-glow" style="background: rgba(20,24,45,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid ${pri.color}; border-radius: var(--border-radius-lg); transition: all 0.3s; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" onclick="viewTask(${task.id})">
+              <div class="card hover-glow" style="background: rgba(20,24,45,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid ${pri.color}; border-radius: var(--border-radius-lg); transition: all 0.3s; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" onclick="viewTask(${task.id}, ${task.assignment_id})">
                 <div class="card-body" style="padding:var(--space-xl)">
                   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-lg); flex-wrap: wrap;">
                     <div style="flex:1; min-width: 250px;">
@@ -410,7 +410,7 @@ async function initTasks() {
                     <div style="display:flex; flex-direction: column; align-items: flex-end; gap: 12px;" onclick="event.stopPropagation()">
                        <span style="padding:6px 16px;border-radius:20px;font-size:0.85rem;font-weight:600;background:${st.bg};color:${st.color}; border: 1px solid ${st.color}44;">${st.label}</span>
                       ${task.status !== 'completed' ? `
-                      <select class="form-select btn-sm" style="width:auto;padding:8px 32px 8px 16px;font-size:0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(${task.id}, this.value)">
+                      <select class="form-select btn-sm" style="width:auto;padding:8px 32px 8px 16px;font-size:0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(${task.id}, this.value, null, ${task.assignment_id})">
                         <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
                         <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>Mark In Progress</option>
                         <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Submit for Review</option>
@@ -474,7 +474,7 @@ async function initTasks() {
                   const student = item.student;
                   const pri = priorityConfig[task.priority] || priorityConfig.medium;
                   return `
-                    <div class="card hover-glow" style="background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-left: 3px solid ${pri.color}; cursor:pointer; padding:var(--space-md); border-radius: var(--border-radius); transition: transform 0.2s, box-shadow 0.2s;" onclick="viewTask(${task.id})" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+                    <div class="card hover-glow" style="background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-left: 3px solid ${pri.color}; cursor:pointer; padding:var(--space-md); border-radius: var(--border-radius); transition: transform 0.2s, box-shadow 0.2s;" onclick="viewTask(${task.id}, ${isAdminUser ? (student ? student.assignment_id : 'null') : task.assignment_id})" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
                       <div style="margin-bottom:10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="padding:3px 8px;border-radius:12px;font-size:0.65rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase; border: 1px solid ${pri.color}33;">${pri.label}</span>
                         ${task.category ? `<span style="font-size: 0.7rem; color: var(--text-muted);">${task.category}</span>` : ''}
@@ -680,7 +680,7 @@ async function initTasks() {
           return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--border-radius);background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05); transition: background 0.2s;" class="hover-bg-glass">
             <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1); display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700; color: var(--text-primary);">${a.name.charAt(0).toUpperCase()}</div>
             <span style="font-size:0.95rem;font-weight:600; flex: 1;">${a.name}</span>
-            <select class="form-select btn-sm" style="width:auto;padding:6px 28px 6px 12px;font-size:0.8rem;border:1px solid ${ast.color}44;background:${ast.bg};color:${ast.color}; border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(${task.id}, this.value, ${a.id})">
+            <select class="form-select btn-sm" style="width:auto;padding:6px 28px 6px 12px;font-size:0.8rem;border:1px solid ${ast.color}44;background:${ast.bg};color:${ast.color}; border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(${task.id}, this.value, ${a.id}, ${a.assignment_id})">
               <option value="assigned" ${a.status === 'assigned' ? 'selected' : ''}>Assigned</option>
               <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
               <option value="under_review" ${a.status === 'under_review' ? 'selected' : ''}>Under Review</option>
@@ -702,7 +702,7 @@ async function initTasks() {
       // Student view actions
       if (task.status !== 'completed') {
          rightActions.innerHTML = `
-          <select class="form-select" style="padding:10px 36px 10px 16px;font-size:0.95rem; background: var(--accent-primary); color: #fff; border: none; border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(${task.id}, this.value)">
+          <select class="form-select" style="padding:10px 36px 10px 16px;font-size:0.95rem; background: var(--accent-primary); color: #fff; border: none; border-radius: 8px; font-weight: 600;" onchange="updateTaskStatus(${task.id}, this.value, null, ${task.assignment_id})">
             <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
             <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>Mark In Progress</option>
             <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Submit for Review</option>
@@ -726,14 +726,25 @@ async function initTasks() {
   document.getElementById('viewTaskModalClose')?.addEventListener('click', closeViewModal);
   viewOverlay?.addEventListener('click', e => { if (e.target === viewOverlay) closeViewModal(); });
   
-  window.viewTask = (id) => {
+  window.viewTask = (id, assignmentId = null) => {
     const task = allTasks.find(t => t.id === id);
     if (task) {
+      let assignment = null;
+      if (assignmentId) {
+         if (isAdminUser) {
+            assignment = task.assignees?.find(a => a.assignment_id === parseInt(assignmentId));
+         } else {
+            assignment = { history_log: task.history_log };
+         }
+      }
+
       // Render History Log
       const historyLogContainer = document.getElementById('viewTaskHistoryLog');
       let historyLog = [];
       try {
-        if (task.history_log) historyLog = typeof task.history_log === 'string' ? JSON.parse(task.history_log) : task.history_log;
+        if (assignment && assignment.history_log) {
+           historyLog = typeof assignment.history_log === 'string' ? JSON.parse(assignment.history_log) : assignment.history_log;
+        }
       } catch (e) {}
       
       if (historyLog.length > 0) {
@@ -754,9 +765,16 @@ async function initTasks() {
       
       const historyForm = document.getElementById('taskHistoryForm');
       if (historyForm) {
-        historyForm.dataset.taskId = id;
-        document.getElementById('taskHistoryMessage').value = '';
-        document.getElementById('taskHistoryImage').value = '';
+        if (assignmentId) {
+          historyForm.style.display = 'block';
+          historyForm.dataset.assignmentId = assignmentId;
+          historyForm.dataset.taskId = id;
+          document.getElementById('taskHistoryMessage').value = '';
+          document.getElementById('taskHistoryImage').value = '';
+        } else {
+          historyForm.style.display = 'none';
+          historyLogContainer.innerHTML = `<div style="color:var(--text-muted); font-size: 0.85rem; font-style: italic;">Select a specific student's task to view history.</div>`;
+        }
       }
 
       openViewModal(task);
@@ -766,7 +784,10 @@ async function initTasks() {
   // Task History Submit
   document.getElementById('taskHistoryForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const assignmentId = e.target.dataset.assignmentId;
     const taskId = e.target.dataset.taskId;
+    if (!assignmentId) return;
+
     const message = document.getElementById('taskHistoryMessage').value.trim();
     const imageFile = document.getElementById('taskHistoryImage').files[0];
     
@@ -783,13 +804,13 @@ async function initTasks() {
       if (message) formData.append('message', message);
       if (imageFile) formData.append('image', imageFile);
       
-      await api.post(`tasks/${taskId}/history`, formData);
+      await api.post(`tasks/assignments/${assignmentId}/history`, formData);
       showToast({ message: 'Update posted successfully.', type: 'success' });
       
       // Reload specific task if possible, or reload all
       await loadTasks();
       // Re-open view modal to see updates
-      window.viewTask(parseInt(taskId));
+      window.viewTask(parseInt(taskId), assignmentId);
     } catch (err) {
       showToast({ message: err.message || 'Failed to post update.', type: 'error' });
     } finally {
@@ -879,25 +900,26 @@ async function initTasks() {
     }
   };
 
-  window.updateTaskStatus = async (id, status, userId = null) => {
+  window.updateTaskStatus = async (id, status, userId = null, assignmentId = null) => {
     try {
       const payload = { status };
       if (userId && isAdminUser) payload.user_id = userId;
 
       await api.put(`tasks/${id}/status`, payload);
       
-      // Also push a history update
-      const fd = new FormData();
-      fd.append('status_change', status);
-      await api.post(`tasks/${id}/history`, fd);
+      // Also push a history update if we know the assignment
+      if (assignmentId) {
+        const fd = new FormData();
+        fd.append('status_change', status);
+        await api.post(`tasks/assignments/${assignmentId}/history`, fd);
+      }
       
       showToast({ message: 'Status updated seamlessly!', type: 'success' });
       await loadTasks(); 
       
       const viewOverlay = document.getElementById('viewTaskModalOverlay');
       if (viewOverlay && viewOverlay.style.display !== 'none') {
-        const task = allTasks.find(t => t.id === id);
-        if (task) openViewModal(task);
+        window.viewTask(id, assignmentId);
       }
     } catch(err) {
       showToast({ message: err.message || 'Failed to update status', type: 'error' });

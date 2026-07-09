@@ -26,36 +26,13 @@ const router = Router();
 
 router.use(verifyToken);
 
-// GET /api/tasks/migrate-old — one-time migration to split old shared tasks
-router.get('/migrate-old', authorize('admin'), async (req, res) => {
+// GET /api/tasks/migrate-db-assignments — one-time migration to add history_log to task_assignments
+router.get('/migrate-db-assignments', authorize('admin'), async (req, res) => {
   try {
-    const tasksRes = await db.query('SELECT * FROM tasks');
-    let migratedCount = 0;
-
-    for (const task of tasksRes.rows) {
-      const assignsRes = await db.query('SELECT * FROM task_assignments WHERE task_id = $1 ORDER BY id ASC', [task.id]);
-      const assigns = assignsRes.rows;
-
-      if (assigns.length > 1) {
-        // Leave the first assignment alone, duplicate for the rest
-        for (let i = 1; i < assigns.length; i++) {
-          const a = assigns[i];
-          const insertRes = await db.query(`
-            INSERT INTO tasks (title, description, status, assigned_by, priority, category, deadline, attachments, history_log)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id
-          `, [
-            task.title, task.description, a.status, task.assigned_by, task.priority, task.category, task.deadline, task.attachments, task.history_log
-          ]);
-          const newTaskId = insertRes.rows[0].id;
-          await db.query('UPDATE task_assignments SET task_id = $1 WHERE id = $2', [newTaskId, a.id]);
-          migratedCount++;
-        }
-      }
-    }
-    res.json({ success: true, message: `Successfully split ${migratedCount} task assignments into their own individual tasks.` });
+    await db.query(`ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS history_log TEXT DEFAULT '[]'`);
+    res.json({ success: true, message: 'Successfully added history_log to task_assignments.' });
   } catch (err) {
-    console.error('Migrate tasks error:', err);
+    console.error('Migrate assignments db error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -66,7 +43,7 @@ const attachAssignees = async (tasks) => {
   const taskIds = tasks.map(t => t.id);
   const placeholders = taskIds.map((_, i) => `$${i + 1}`).join(',');
   const assignmentsRes = await db.query(`
-    SELECT ta.task_id, ta.status as assignment_status, u.name, u.id as user_id 
+    SELECT ta.id as assignment_id, ta.task_id, ta.status as assignment_status, u.name, u.id as user_id, ta.history_log
     FROM task_assignments ta 
     JOIN users u ON ta.user_id = u.id 
     WHERE ta.task_id IN (${placeholders})
@@ -75,7 +52,13 @@ const attachAssignees = async (tasks) => {
   const assigneesByTask = {};
   for (const a of assignmentsRes.rows) {
     if (!assigneesByTask[a.task_id]) assigneesByTask[a.task_id] = [];
-    assigneesByTask[a.task_id].push({ id: a.user_id, name: a.name, status: a.assignment_status || 'assigned' });
+    assigneesByTask[a.task_id].push({ 
+      id: a.user_id, 
+      assignment_id: a.assignment_id, 
+      name: a.name, 
+      status: a.assignment_status || 'assigned',
+      history_log: a.history_log || '[]'
+    });
   }
 
   return tasks.map(t => ({ ...t, assignees: assigneesByTask[t.id] || [] }));
@@ -101,7 +84,7 @@ router.get('/', async (req, res) => {
       res.json({ success: true, data: await attachAssignees(result.rows) });
     } else {
       let query = `
-        SELECT t.*, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
+        SELECT t.*, ta.id as assignment_id, ta.history_log, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
         FROM tasks t
         JOIN task_assignments ta ON t.id = ta.task_id
         JOIN users u ON t.assigned_by = u.id
@@ -129,7 +112,7 @@ router.get('/', async (req, res) => {
 router.get('/my', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT t.*, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
+      SELECT t.*, ta.id as assignment_id, ta.history_log, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes, ta.assigned_at, ta.completed_at
       FROM tasks t
       JOIN task_assignments ta ON t.id = ta.task_id
       JOIN users u ON t.assigned_by = u.id
@@ -157,7 +140,7 @@ router.get('/kanban', async (req, res) => {
       tasks = result.rows;
     } else {
       const result = await db.query(`
-        SELECT t.*, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes
+        SELECT t.*, ta.id as assignment_id, ta.history_log, COALESCE(ta.status, t.status) as status, u.name as assigned_by_name, ta.progress_notes
         FROM tasks t
         JOIN task_assignments ta ON t.id = ta.task_id
         JOIN users u ON t.assigned_by = u.id
@@ -222,28 +205,26 @@ router.post('/', authorize('admin'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Task title is required.' });
     }
 
-    const tasksCreated = [];
     const assignees = (assigned_to && Array.isArray(assigned_to) && assigned_to.length > 0) ? assigned_to : [null];
 
+    const insertRes = await db.query(`
+      INSERT INTO tasks (title, description, assigned_by, priority, category, deadline, attachments)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [
+      title,
+      description || null,
+      req.user.id,
+      priority || 'medium',
+      category || null,
+      deadline || null,
+      attachments ? JSON.stringify(attachments) : '[]',
+    ]);
+
+    const task = insertRes.rows[0];
+    const taskId = task.id;
+
     for (const studentId of assignees) {
-      const insertRes = await db.query(`
-        INSERT INTO tasks (title, description, assigned_by, priority, category, deadline, attachments)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id
-      `, [
-        title,
-        description || null,
-        req.user.id,
-        priority || 'medium',
-        category || null,
-        deadline || null,
-        attachments ? JSON.stringify(attachments) : '[]',
-      ]);
-
-      const taskId = insertRes.rows[0].id;
-      tasksCreated.push(taskId);
-
-      // Assign to student and notify if applicable
       if (studentId) {
         await db.query('INSERT INTO task_assignments (task_id, user_id) VALUES ($1, $2)', [taskId, studentId]);
         await createNotification(
@@ -256,17 +237,14 @@ router.post('/', authorize('admin'), async (req, res) => {
       }
     }
 
-    // Return the first created task as representative for the response
-    const firstTaskId = tasksCreated[0];
-    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [firstTaskId]);
     const assignmentsRes = await db.query(`
       SELECT ta.*, u.name as user_name
       FROM task_assignments ta
       JOIN users u ON ta.user_id = u.id
       WHERE ta.task_id = $1
-    `, [firstTaskId]);
+    `, [taskId]);
 
-    res.status(201).json({ success: true, data: { ...taskRes.rows[0], assignments: assignmentsRes.rows }, createdCount: tasksCreated.length });
+    res.status(201).json({ success: true, data: { ...task, assignments: assignmentsRes.rows } });
   } catch (error) {
     console.error('Create task error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -498,6 +476,7 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
       return res.status(404).json({ success: false, error: 'Task not found.' });
     }
 
+    await db.query('DELETE FROM task_assignments WHERE task_id = $1', [id]);
     await db.query('DELETE FROM tasks WHERE id = $1', [id]);
 
     res.json({ success: true, data: { message: 'Task deleted successfully.' } });
@@ -507,10 +486,10 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
   }
 });
 
-// POST /api/tasks/:id/history — add history note / image
-router.post('/:id/history', upload.single('image'), async (req, res) => {
+// POST /api/tasks/assignments/:assignmentId/history — add history note / image to a specific assignment
+router.post('/assignments/:assignmentId/history', upload.single('image'), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { assignmentId } = req.params;
     const { message, status_change } = req.body;
     let imageUrl = null;
 
@@ -522,16 +501,17 @@ router.post('/:id/history', upload.single('image'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Empty history submission.' });
     }
 
-    const taskRes = await db.query('SELECT history_log FROM tasks WHERE id = $1', [id]);
-    if (!taskRes.rows[0]) {
+    const assignmentRes = await db.query('SELECT history_log, task_id, user_id FROM task_assignments WHERE id = $1', [assignmentId]);
+    if (!assignmentRes.rows[0]) {
       if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(404).json({ success: false, error: 'Task not found.' });
+      return res.status(404).json({ success: false, error: 'Assignment not found.' });
     }
+    const assignment = assignmentRes.rows[0];
 
     let historyLog = [];
     try {
-      if (taskRes.rows[0].history_log) {
-        historyLog = JSON.parse(taskRes.rows[0].history_log);
+      if (assignment.history_log) {
+        historyLog = JSON.parse(assignment.history_log);
       }
     } catch (e) {
       historyLog = [];
@@ -546,25 +526,34 @@ router.post('/:id/history', upload.single('image'), async (req, res) => {
     });
 
     await db.query(`
-      UPDATE tasks SET history_log = $1 WHERE id = $2
-    `, [JSON.stringify(historyLog), id]);
+      UPDATE task_assignments SET history_log = $1 WHERE id = $2
+    `, [JSON.stringify(historyLog), assignmentId]);
 
     // Notification logic
-    // If admin adds a note, notify assigned students
+    // If admin adds a note, notify the assigned student
     if (req.user.role === 'admin' && message) {
-      const assignments = await db.query('SELECT user_id FROM task_assignments WHERE task_id = $1', [id]);
-      for (const a of assignments.rows) {
+      await createNotification(
+        assignment.user_id,
+        'task',
+        'New Task Comment',
+        `${req.user.name} added a note on your task assignment.`,
+        `/tasks`
+      );
+    } else if (req.user.role === 'student' && message) {
+      // If student adds a note, notify admins
+      const adminsRes = await db.query("SELECT id FROM users WHERE role = 'admin'");
+      for (const admin of adminsRes.rows) {
         await createNotification(
-          a.user_id,
+          admin.id,
           'task',
           'New Task Comment',
-          `${req.user.name} added a note on task #${id}.`,
+          `${req.user.name} added a note on their task assignment.`,
           `/tasks`
         );
       }
     }
 
-    res.json({ success: true, data: historyLog });
+    res.json({ success: true, data: historyLog[historyLog.length - 1] });
   } catch (error) {
     console.error('History update error:', error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
