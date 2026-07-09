@@ -331,7 +331,7 @@ async function initTasks() {
                 
                 return `
                   <tr style="border-bottom:1px solid rgba(255,255,255,0.03); transition: background 0.3s;" class="hover-bg-glass">
-                    <td style="padding:16px;vertical-align:middle">
+                    <td style="padding:16px;vertical-align:middle;cursor:pointer" onclick="viewTask(${task.id}, ${student ? student.assignment_id : 'null'})">
                       ${student ? `
                         <div style="display:flex;align-items:center;gap:12px">
                           <div style="width:32px;height:32px;border-radius:50%;background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1); display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;color:var(--text-primary); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
@@ -631,7 +631,7 @@ async function initTasks() {
   
   // View Modal
   const viewOverlay = document.getElementById('viewTaskModalOverlay');
-  function openViewModal(task) {
+  function openViewModal(task, assignmentId = null) {
     document.getElementById('viewTaskTitle').textContent = task.title;
     document.getElementById('viewTaskDesc').textContent = task.description || 'No detailed description provided for this task.';
     
@@ -675,7 +675,11 @@ async function initTasks() {
       const assigneesContainer = document.getElementById('viewTaskAssigneesContainer');
       const assigneesDiv = document.getElementById('viewTaskAssignees');
       if (task.assignees && task.assignees.length > 0) {
-        assigneesDiv.innerHTML = task.assignees.map(a => {
+        let assigneesToRender = task.assignees;
+        if (assignmentId) {
+           assigneesToRender = task.assignees.filter(a => a.assignment_id === parseInt(assignmentId));
+        }
+        assigneesDiv.innerHTML = assigneesToRender.map(a => {
           const ast = statusConfig[a.status] || statusConfig.assigned;
           return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--border-radius);background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05); transition: background 0.2s;" class="hover-bg-glass">
             <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1); display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700; color: var(--text-primary);">${a.name.charAt(0).toUpperCase()}</div>
@@ -777,7 +781,7 @@ async function initTasks() {
         }
       }
 
-      openViewModal(task);
+      openViewModal(task, assignmentId);
     }
   };
 

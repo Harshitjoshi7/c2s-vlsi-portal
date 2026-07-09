@@ -317,6 +317,23 @@ async function initTickets() {
                         <img src="${screenshots[0]}" alt="Attachment" style="max-height:120px;border-radius:var(--border-radius-sm);border:1px solid var(--border-color);cursor:pointer;object-fit:contain" onclick="viewTicketImage('${screenshots[0]}')" />
                       </div>
                     ` : ''}
+                    ${(() => {
+                      let latestMsg = '';
+                      try {
+                        const historyLog = typeof t.history_log === 'string' ? JSON.parse(t.history_log) : (t.history_log || []);
+                        const msgEntries = historyLog.filter(h => h.message);
+                        if (msgEntries.length > 0) {
+                          const lastEntry = msgEntries[msgEntries.length - 1];
+                          latestMsg = `
+                            <div style="margin-top: 10px; margin-bottom: 12px; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 2px solid var(--accent-primary);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;"><i data-lucide="message-circle" style="width:12px;height:12px;margin-right:4px;"></i>${lastEntry.user} (Latest Update)</div>
+                              <div style="font-size: 0.85rem; color: var(--text-primary);">${lastEntry.message}</div>
+                            </div>
+                          `;
+                        }
+                      } catch (e) {}
+                      return latestMsg;
+                    })()}
                     <div style="display:flex;align-items:center;gap:var(--space-lg);color:var(--text-muted);font-size:0.8rem">
                       <span><i data-lucide="calendar" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px"></i>${dateStr}</span>
                       ${isAdminUser && t.raised_by_name ? `<span><i data-lucide="user" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px"></i>${t.raised_by_name}</span>` : ''}
