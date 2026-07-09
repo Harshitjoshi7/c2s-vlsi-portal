@@ -5,8 +5,6 @@ import { authorize } from '../middleware/roleGuard.js';
 
 const router = Router();
 
-router.use(verifyToken);
-
 // GET /api/pcs/migrate-db — one-time migration to add ip_address and student_id_label
 router.get('/migrate-db', async (req, res) => {
   try {
@@ -18,6 +16,8 @@ router.get('/migrate-db', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+router.use(verifyToken);
 
 // GET /api/pcs — list all PCs with current assignments
 router.get('/', async (req, res) => {
