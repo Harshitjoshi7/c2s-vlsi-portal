@@ -783,7 +783,7 @@ async function initTasks() {
       if (message) formData.append('message', message);
       if (imageFile) formData.append('image', imageFile);
       
-      await api.post(\`tasks/\${taskId}/history\`, { body: formData });
+      await api.post(`tasks/${taskId}/history`, { body: formData });
       showToast({ message: 'Update posted successfully.', type: 'success' });
       
       // Reload specific task if possible, or reload all
