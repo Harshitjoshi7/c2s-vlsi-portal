@@ -216,9 +216,24 @@ document.addEventListener('DOMContentLoaded', () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data && event.data.type === 'PLAY_SOUND') {
-      playNotificationSound();
+      const type = event.data.notification?.type;
+      if (type === 'task' || type === 'ticket') {
+        playAlertSound();
+      } else {
+        playNotificationSound();
+      }
     }
   });
+}
+
+function playAlertSound() {
+  try {
+    // HTML5 Audio object as requested
+    const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    audio.play().catch(e => console.warn('Audio play failed', e));
+  } catch (e) {
+    console.warn('Audio object failed', e);
+  }
 }
 
 function playNotificationSound() {

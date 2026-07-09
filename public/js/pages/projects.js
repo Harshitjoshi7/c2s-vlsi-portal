@@ -28,6 +28,22 @@ function renderProjects() {
         </div>
       </div>
 
+      <!-- Project Stats -->
+      <div class="grid grid-3 animate-slideUp stagger-2" style="gap:var(--space-md); margin-bottom:var(--space-md);">
+        <div class="stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Total Projects</div>
+          <div id="statTotalProjects" style="font-size: 2rem; font-weight: 800; color: var(--text-primary);">0</div>
+        </div>
+        <div class="stat-card" style="background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="font-size: 0.85rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Completed Projects</div>
+          <div id="statCompletedProjects" style="font-size: 2rem; font-weight: 800; color: var(--success);">0</div>
+        </div>
+        <div class="stat-card" style="background: rgba(64,196,255,0.05); border: 1px solid rgba(64,196,255,0.2); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="font-size: 0.85rem; color: var(--info); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Active Projects</div>
+          <div id="statActiveProjects" style="font-size: 2rem; font-weight: 800; color: var(--info);">0</div>
+        </div>
+      </div>
+
       <!-- Filters -->
       <div class="card animate-slideUp stagger-2" style="margin-bottom:var(--space-lg)">
         <div class="card-body" style="padding:var(--space-md)">
@@ -313,6 +329,15 @@ async function initProjects() {
     const statusFilter = document.getElementById('projStatusFilter')?.value || '';
     const typeFilter = document.getElementById('projTypeFilter')?.value || '';
     const studentFilter = document.getElementById('projStudentFilter')?.value || '';
+
+    // Calculate Project Stats
+    const totalProjects = allProjects.length;
+    const completedProjects = allProjects.filter(p => p.status === 'completed').length;
+    const activeProjects = allProjects.filter(p => p.status === 'active').length;
+
+    if (document.getElementById('statTotalProjects')) document.getElementById('statTotalProjects').textContent = totalProjects;
+    if (document.getElementById('statCompletedProjects')) document.getElementById('statCompletedProjects').textContent = completedProjects;
+    if (document.getElementById('statActiveProjects')) document.getElementById('statActiveProjects').textContent = activeProjects;
 
     const filtered = allProjects.filter(p => {
       const matchSearch = !search || (p.name || '').toLowerCase().includes(search) || (p.description || '').toLowerCase().includes(search);

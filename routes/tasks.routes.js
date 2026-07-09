@@ -2,6 +2,25 @@ import { Router } from 'express';
 import db, { createNotification } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { authorize } from '../middleware/roleGuard.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Setup multer storage for task images
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'public/uploads/tasks/';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'task-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
 
 const router = Router();
 
@@ -266,7 +285,7 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Status is required.' });
     }
 
-    const validStatuses = ['assigned', 'in_progress', 'under_review', 'completed'];
+    const validStatuses = ['assigned', 'in_progress', 'under_review', 'needs_revision', 'completed'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
@@ -341,6 +360,17 @@ router.put('/:id/status', async (req, res) => {
           'task',
           'Task Approved!',
           `Your task "${task.title}" has been approved and marked as completed.`,
+          `/tasks`
+        );
+      }
+      
+      // Notification: Admin sets to needs_revision → notify the student
+      if (req.user.role === 'admin' && status === 'needs_revision' && assignment.status !== 'needs_revision') {
+        await createNotification(
+          targetUserId,
+          'task',
+          'Task Needs Revision',
+          `Your task "${task.title}" needs revision. Please check the feedback.`,
           `/tasks`
         );
       }
@@ -430,6 +460,71 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
     res.json({ success: true, data: { message: 'Task deleted successfully.' } });
   } catch (error) {
     console.error('Delete task error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// POST /api/tasks/:id/history — add history note / image
+router.post('/:id/history', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message, status_change } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      imageUrl = '/uploads/tasks/' + req.file.filename;
+    }
+
+    if (!message && !imageUrl && !status_change) {
+      return res.status(400).json({ success: false, error: 'Empty history submission.' });
+    }
+
+    const taskRes = await db.query('SELECT history_log FROM tasks WHERE id = $1', [id]);
+    if (!taskRes.rows[0]) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(404).json({ success: false, error: 'Task not found.' });
+    }
+
+    let historyLog = [];
+    try {
+      if (taskRes.rows[0].history_log) {
+        historyLog = JSON.parse(taskRes.rows[0].history_log);
+      }
+    } catch (e) {
+      historyLog = [];
+    }
+
+    historyLog.push({
+      user: req.user.name,
+      message: message || '',
+      image_url: imageUrl,
+      status_change: status_change || null,
+      timestamp: new Date().toISOString()
+    });
+
+    await db.query(`
+      UPDATE tasks SET history_log = $1 WHERE id = $2
+    `, [JSON.stringify(historyLog), id]);
+
+    // Notification logic
+    // If admin adds a note, notify assigned students
+    if (req.user.role === 'admin' && message) {
+      const assignments = await db.query('SELECT user_id FROM task_assignments WHERE task_id = $1', [id]);
+      for (const a of assignments.rows) {
+        await createNotification(
+          a.user_id,
+          'task',
+          'New Task Comment',
+          `${req.user.name} added a note on task #${id}.`,
+          `/tasks`
+        );
+      }
+    }
+
+    res.json({ success: true, data: historyLog });
+  } catch (error) {
+    console.error('History update error:', error);
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });

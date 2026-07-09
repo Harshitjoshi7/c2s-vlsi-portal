@@ -37,6 +37,24 @@ function renderTasks() {
         </div>
       </div>
 
+      <!-- Task Stats -->
+      <div class="grid grid-2 animate-slideUp stagger-2" style="gap:var(--space-md); margin-bottom:var(--space-md);">
+        <div class="stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Total Tasks</div>
+          <div id="statTotalTasks" style="font-size: 2rem; font-weight: 800; color: var(--text-primary);">0</div>
+        </div>
+        <div class="stat-card" style="background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="font-size: 0.85rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Completed Tasks</div>
+          <div id="statCompletedTasks" style="font-size: 2rem; font-weight: 800; color: var(--success);">0</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs-container animate-slideUp stagger-2" style="margin-bottom: var(--space-md); display: flex; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+        <button class="btn btn-ghost active-tab" id="tabActiveTasks" style="border-radius: var(--border-radius-sm); font-weight: 600; color: var(--text-primary); background: rgba(255,255,255,0.1);">Active Tasks</button>
+        <button class="btn btn-ghost" id="tabCompletedTasks" style="border-radius: var(--border-radius-sm); font-weight: 600; color: var(--text-muted);">Completed Tasks</button>
+      </div>
+
       <!-- Filters -->
       <div class="card animate-slideUp stagger-2" style="margin-bottom:var(--space-xl); background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); backdrop-filter: blur(10px);">
         <div class="card-body" style="padding:var(--space-md) var(--space-lg)">
@@ -50,6 +68,7 @@ function renderTasks() {
               <option value="assigned">Assigned</option>
               <option value="in_progress">In Progress</option>
               <option value="under_review">Under Review</option>
+              <option value="needs_revision">Needs Revision</option>
               <option value="completed">Completed</option>
             </select>
             <select class="form-select" id="taskPriorityFilter" style="width:160px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
@@ -173,6 +192,23 @@ function renderTasks() {
             <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Task Assignments</div>
             <div id="viewTaskAssignees" style="display:flex;flex-direction:column;gap:10px;"></div>
           </div>
+
+          <!-- History Log -->
+          <div style="margin-top:24px;">
+            <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Task History & Feedback</div>
+            <div id="viewTaskHistoryLog" style="display:flex;flex-direction:column;gap:12px; max-height: 250px; overflow-y:auto; padding-right:8px; margin-bottom: 16px;">
+            </div>
+            
+            <form id="taskHistoryForm" style="display:flex; flex-direction:column; gap:12px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: var(--border-radius); border: 1px solid rgba(255,255,255,0.05);">
+              <textarea id="taskHistoryMessage" class="form-textarea" placeholder="Add a comment or update..." style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px;"></textarea>
+              <div style="display:flex; gap:10px; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <input type="file" id="taskHistoryImage" accept="image/*" class="form-input" style="font-size: 0.8rem; padding: 6px; max-width: 200px; background: rgba(0,0,0,0.3); border-radius: 6px;" />
+                <button type="submit" class="btn btn-primary btn-sm" id="taskHistorySubmitBtn" style="font-weight:600; padding: 6px 16px;">
+                  <i data-lucide="send" style="width:14px;height:14px;margin-right:6px"></i> Post Update
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
         <div class="modal-footer" id="viewTaskModalFooter" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; display: flex; justify-content: space-between;">
            <div id="viewTaskActionsLeft"></div>
@@ -232,6 +268,7 @@ async function initTasks() {
     assigned:     { label:'Assigned',     color:'var(--info)',    bg:'rgba(64,196,255,0.1)'  },
     in_progress:  { label:'In Progress',  color:'var(--warning)', bg:'rgba(255,171,64,0.1)' },
     under_review: { label:'Under Review', color:'var(--accent-secondary)', bg:'rgba(124,92,255,0.1)' },
+    needs_revision: { label:'Needs Revision', color:'var(--error)', bg:'rgba(255,82,82,0.15)' },
     completed:    { label:'Completed',    color:'var(--success)', bg:'rgba(0,230,118,0.1)'  },
   };
 
@@ -317,6 +354,7 @@ async function initTasks() {
                         <option value="assigned" ${student.status === 'assigned' ? 'selected' : ''}>Assigned</option>
                         <option value="in_progress" ${student.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
                         <option value="under_review" ${student.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+                        <option value="needs_revision" ${student.status === 'needs_revision' ? 'selected' : ''}>Needs Revision</option>
                         <option value="completed" ${student.status === 'completed' ? 'selected' : ''}>Completed</option>
                       </select>
                       ` : `<span style="padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;background:${st.bg};color:${st.color}; border: 1px solid ${st.color}44;">${st.label}</span>`}
@@ -376,6 +414,7 @@ async function initTasks() {
                         <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
                         <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>Mark In Progress</option>
                         <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Submit for Review</option>
+                        ${task.status === 'needs_revision' ? `<option value="needs_revision" selected disabled>Needs Revision</option>` : ''}
                         <option value="completed">Complete Task</option>
                       </select>
                       ` : ''}
@@ -399,6 +438,7 @@ async function initTasks() {
       { key: 'assigned', label: 'Assigned', color: 'var(--info)' },
       { key: 'in_progress', label: 'In Progress', color: 'var(--warning)' },
       { key: 'under_review', label: 'Under Review', color: 'var(--accent-secondary)' },
+      { key: 'needs_revision', label: 'Needs Revision', color: 'var(--error)' },
       { key: 'completed', label: 'Completed', color: 'var(--success)' },
     ];
 
@@ -466,11 +506,23 @@ async function initTasks() {
     if (window.lucide) lucide.createIcons();
   }
 
+  let currentTaskTab = 'active'; // 'active' or 'completed'
+
   // Filters
   function applyFilters() {
     const search = document.getElementById('taskSearch')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('taskStatusFilter')?.value || '';
     const priorityFilter = document.getElementById('taskPriorityFilter')?.value || '';
+
+    let totalTasks = allTasks.length;
+    let completedTasks = allTasks.filter(t => t.status === 'completed').length;
+    
+    if (document.getElementById('statTotalTasks')) {
+      document.getElementById('statTotalTasks').textContent = totalTasks;
+    }
+    if (document.getElementById('statCompletedTasks')) {
+      document.getElementById('statCompletedTasks').textContent = completedTasks;
+    }
 
     const filtered = allTasks.filter(t => {
       const matchSearch = !search || (t.title || '').toLowerCase().includes(search) || (t.description || '').toLowerCase().includes(search);
@@ -481,7 +533,9 @@ async function initTasks() {
         matchStatus = matchStatus || t.assignees.some(a => a.status === statusFilter);
       }
       
-      return matchSearch && matchStatus && matchPriority;
+      const matchTab = currentTaskTab === 'active' ? t.status !== 'completed' : t.status === 'completed';
+
+      return matchSearch && matchStatus && matchPriority && matchTab;
     });
 
     if (viewMode === 'kanban') renderKanbanView(filtered);
@@ -494,6 +548,35 @@ async function initTasks() {
       el.addEventListener('input', applyFilters);
       el.addEventListener('change', applyFilters);
     }
+  });
+
+  // Tab toggles
+  document.getElementById('tabActiveTasks')?.addEventListener('click', (e) => {
+    currentTaskTab = 'active';
+    e.target.classList.add('active-tab');
+    e.target.style.background = 'rgba(255,255,255,0.1)';
+    e.target.style.color = 'var(--text-primary)';
+    const other = document.getElementById('tabCompletedTasks');
+    if (other) {
+      other.classList.remove('active-tab');
+      other.style.background = 'transparent';
+      other.style.color = 'var(--text-muted)';
+    }
+    applyFilters();
+  });
+  
+  document.getElementById('tabCompletedTasks')?.addEventListener('click', (e) => {
+    currentTaskTab = 'completed';
+    e.target.classList.add('active-tab');
+    e.target.style.background = 'rgba(255,255,255,0.1)';
+    e.target.style.color = 'var(--text-primary)';
+    const other = document.getElementById('tabActiveTasks');
+    if (other) {
+      other.classList.remove('active-tab');
+      other.style.background = 'transparent';
+      other.style.color = 'var(--text-muted)';
+    }
+    applyFilters();
   });
 
   // View toggles
@@ -601,6 +684,7 @@ async function initTasks() {
               <option value="assigned" ${a.status === 'assigned' ? 'selected' : ''}>Assigned</option>
               <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
               <option value="under_review" ${a.status === 'under_review' ? 'selected' : ''}>Under Review</option>
+              <option value="needs_revision" ${a.status === 'needs_revision' ? 'selected' : ''}>Needs Revision</option>
               <option value="completed" ${a.status === 'completed' ? 'selected' : ''}>Completed</option>
             </select>
             <button class="btn btn-ghost btn-sm" onclick="removeAssignment(${task.id}, ${a.id})" title="Remove Assignment" style="color: var(--error); background: rgba(255,82,82,0.1); border-radius: 8px; padding: 6px;">
@@ -622,6 +706,7 @@ async function initTasks() {
             <option value="assigned" ${task.status === 'assigned' ? 'selected' : ''}>Assigned</option>
             <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>Mark In Progress</option>
             <option value="under_review" ${task.status === 'under_review' ? 'selected' : ''}>Submit for Review</option>
+            ${task.status === 'needs_revision' ? `<option value="needs_revision" selected disabled>Needs Revision</option>` : ''}
           </select>
         `;
       } else {
@@ -643,8 +728,76 @@ async function initTasks() {
   
   window.viewTask = (id) => {
     const task = allTasks.find(t => t.id === id);
-    if (task) openViewModal(task);
+    if (task) {
+      // Render History Log
+      const historyLogContainer = document.getElementById('viewTaskHistoryLog');
+      let historyLog = [];
+      try {
+        if (task.history_log) historyLog = typeof task.history_log === 'string' ? JSON.parse(task.history_log) : task.history_log;
+      } catch (e) {}
+      
+      if (historyLog.length > 0) {
+        historyLogContainer.innerHTML = historyLog.map(h => `
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+            <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-weight:600; font-size: 0.9rem; color: var(--text-primary);"><i data-lucide="user" style="width:14px;height:14px;margin-right:4px;"></i>${h.user}</span>
+              <span style="font-size:0.75rem; color: var(--text-muted);">${new Date(h.timestamp).toLocaleString()}</span>
+            </div>
+            ${h.status_change ? `<div style="font-size:0.8rem; color: var(--info); margin-bottom: 6px;"><i>Changed status to <b>${h.status_change}</b></i></div>` : ''}
+            ${h.message ? `<p style="font-size:0.9rem; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.5;">${h.message}</p>` : ''}
+            ${h.image_url ? `<img src="${h.image_url}" style="max-width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-top: 8px;" />` : ''}
+          </div>
+        `).join('');
+      } else {
+        historyLogContainer.innerHTML = `<div style="color:var(--text-muted); font-size: 0.85rem; font-style: italic;">No history yet.</div>`;
+      }
+      
+      const historyForm = document.getElementById('taskHistoryForm');
+      if (historyForm) {
+        historyForm.dataset.taskId = id;
+        document.getElementById('taskHistoryMessage').value = '';
+        document.getElementById('taskHistoryImage').value = '';
+      }
+
+      openViewModal(task);
+    }
   };
+
+  // Task History Submit
+  document.getElementById('taskHistoryForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const taskId = e.target.dataset.taskId;
+    const message = document.getElementById('taskHistoryMessage').value.trim();
+    const imageFile = document.getElementById('taskHistoryImage').files[0];
+    
+    if (!message && !imageFile) {
+      return showToast({ message: 'Please provide a message or an image.', type: 'warning' });
+    }
+    
+    const submitBtn = document.getElementById('taskHistorySubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;"></div>';
+    
+    try {
+      const formData = new FormData();
+      if (message) formData.append('message', message);
+      if (imageFile) formData.append('image', imageFile);
+      
+      await api.post(\`tasks/\${taskId}/history\`, { body: formData });
+      showToast({ message: 'Update posted successfully.', type: 'success' });
+      
+      // Reload specific task if possible, or reload all
+      await loadTasks();
+      // Re-open view modal to see updates
+      window.viewTask(parseInt(taskId));
+    } catch (err) {
+      showToast({ message: err.message || 'Failed to post update.', type: 'error' });
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i data-lucide="send" style="width:14px;height:14px;margin-right:6px"></i> Post Update';
+      if (window.lucide) lucide.createIcons();
+    }
+  });
 
   // Submit
   document.getElementById('taskSubmitBtn')?.addEventListener('click', async (e) => {
@@ -732,6 +885,12 @@ async function initTasks() {
       if (userId && isAdminUser) payload.user_id = userId;
 
       await api.put(`tasks/${id}/status`, payload);
+      
+      // Also push a history update
+      const fd = new FormData();
+      fd.append('status_change', status);
+      await api.post(`tasks/${id}/history`, { body: fd });
+      
       showToast({ message: 'Status updated seamlessly!', type: 'success' });
       await loadTasks(); 
       

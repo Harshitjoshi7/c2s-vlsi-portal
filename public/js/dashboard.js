@@ -32,6 +32,51 @@ function renderAdminDashboard(user) {
         </div>
       </div>
 
+      <!-- Overview Row -->
+      <div class="grid grid-2 animate-slideUp stagger-1" style="gap:var(--space-md); margin-bottom:var(--space-lg);">
+        <div class="stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Projects Overview</div>
+            <i data-lucide="folder-git-2" style="color:var(--accent-secondary); width: 18px; height: 18px;"></i>
+          </div>
+          <div style="display: flex; gap: 24px;">
+            <div>
+              <div id="overviewTotalProjects" style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Total</div>
+            </div>
+            <div>
+              <div id="overviewActiveProjects" style="font-size: 1.5rem; font-weight: 800; color: var(--info);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Active</div>
+            </div>
+            <div>
+              <div id="overviewCompletedProjects" style="font-size: 1.5rem; font-weight: 800; color: var(--success);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Completed</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Tasks Overview</div>
+            <i data-lucide="list-checks" style="color:var(--warning); width: 18px; height: 18px;"></i>
+          </div>
+          <div style="display: flex; gap: 24px;">
+            <div>
+              <div id="overviewTotalTasks" style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Total</div>
+            </div>
+            <div>
+              <div id="overviewPendingTasks" style="font-size: 1.5rem; font-weight: 800; color: var(--warning);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Pending</div>
+            </div>
+            <div>
+              <div id="overviewCompletedTasks" style="font-size: 1.5rem; font-weight: 800; color: var(--success);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Completed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats Row -->
       <div class="grid grid-stats section" id="adminStats">
         <div class="stat-card animate-slideUp stagger-1">
@@ -168,6 +213,51 @@ function renderStudentDashboard(user) {
         <div class="page-header-left">
           <h1 class="page-title animate-slideUp">Hey, ${firstName} 👋</h1>
           <p class="page-subtitle animate-slideUp stagger-1">${today}</p>
+        </div>
+      </div>
+
+      <!-- Overview Row -->
+      <div class="grid grid-2 animate-slideUp stagger-1" style="gap:var(--space-md); margin-bottom:var(--space-lg);">
+        <div class="stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Projects Overview</div>
+            <i data-lucide="folder-git-2" style="color:var(--accent-secondary); width: 18px; height: 18px;"></i>
+          </div>
+          <div style="display: flex; gap: 24px;">
+            <div>
+              <div id="overviewTotalProjects" style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Total</div>
+            </div>
+            <div>
+              <div id="overviewActiveProjects" style="font-size: 1.5rem; font-weight: 800; color: var(--info);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Active</div>
+            </div>
+            <div>
+              <div id="overviewCompletedProjects" style="font-size: 1.5rem; font-weight: 800; color: var(--success);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Completed</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: var(--border-radius-md);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Tasks Overview</div>
+            <i data-lucide="list-checks" style="color:var(--warning); width: 18px; height: 18px;"></i>
+          </div>
+          <div style="display: flex; gap: 24px;">
+            <div>
+              <div id="overviewTotalTasks" style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Total</div>
+            </div>
+            <div>
+              <div id="overviewPendingTasks" style="font-size: 1.5rem; font-weight: 800; color: var(--warning);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Pending</div>
+            </div>
+            <div>
+              <div id="overviewCompletedTasks" style="font-size: 1.5rem; font-weight: 800; color: var(--success);">-</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Completed</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -310,10 +400,23 @@ async function loadAdminDashboard() {
   const ticketsData = extract(val(tickets));
   const logsData = extract(val(logs));
 
+  const activeProjectsCount = projectsData.filter(p => p.status === 'active').length;
+  const completedProjectsCount = projectsData.filter(p => p.status === 'completed').length;
+  
+  if (document.getElementById('overviewTotalProjects')) document.getElementById('overviewTotalProjects').textContent = projectsData.length;
+  if (document.getElementById('overviewActiveProjects')) document.getElementById('overviewActiveProjects').textContent = activeProjectsCount;
+  if (document.getElementById('overviewCompletedProjects')) document.getElementById('overviewCompletedProjects').textContent = completedProjectsCount;
+
+  const pendingTasksCount = tasksData.filter(t => t.status !== 'completed').length;
+  const completedTasksCount = tasksData.filter(t => t.status === 'completed').length;
+
+  if (document.getElementById('overviewTotalTasks')) document.getElementById('overviewTotalTasks').textContent = tasksData.length;
+  if (document.getElementById('overviewPendingTasks')) document.getElementById('overviewPendingTasks').textContent = pendingTasksCount;
+  if (document.getElementById('overviewCompletedTasks')) document.getElementById('overviewCompletedTasks').textContent = completedTasksCount;
+
   animateStat('statStudents', studentsData.length);
-  animateStat('statProjects', projectsData.filter(p => p.status === 'active').length);
-  const pendingTasks = tasksData.filter(t => t.status !== 'completed');
-  animateStat('statTasks', pendingTasks.length);
+  animateStat('statProjects', activeProjectsCount);
+  animateStat('statTasks', pendingTasksCount);
 
   // attendance/today returns { data: { present: [], absent: [], summary: { present_count, absent_count, total_students } } }
   let presentCount = 0, totalCount = studentsData.length;
@@ -386,9 +489,21 @@ async function loadStudentDashboard() {
   const announcementsData = extract(val(announcements));
   const pcsData = extract(val(pcs));
 
-  animateStat('statMyProjects', projectsData.length);
+  const activeProjectsCount = projectsData.filter(p => p.status === 'active').length;
+  const completedProjectsCount = projectsData.filter(p => p.status === 'completed').length;
+  
+  if (document.getElementById('overviewTotalProjects')) document.getElementById('overviewTotalProjects').textContent = projectsData.length;
+  if (document.getElementById('overviewActiveProjects')) document.getElementById('overviewActiveProjects').textContent = activeProjectsCount;
+  if (document.getElementById('overviewCompletedProjects')) document.getElementById('overviewCompletedProjects').textContent = completedProjectsCount;
 
   const dueTasks = tasksData.filter(t => t.status !== 'completed' && t.status !== 'done');
+  const completedTasksCount = tasksData.filter(t => t.status === 'completed' || t.status === 'done').length;
+
+  if (document.getElementById('overviewTotalTasks')) document.getElementById('overviewTotalTasks').textContent = tasksData.length;
+  if (document.getElementById('overviewPendingTasks')) document.getElementById('overviewPendingTasks').textContent = dueTasks.length;
+  if (document.getElementById('overviewCompletedTasks')) document.getElementById('overviewCompletedTasks').textContent = completedTasksCount;
+
+  animateStat('statMyProjects', activeProjectsCount);
   animateStat('statTasksDue', dueTasks.length);
 
   // Calculate attendance percentage from records (exclude leave days)

@@ -114,7 +114,7 @@ export async function createNotification(userId, type, title, message, link = nu
         'SELECT * FROM push_subscriptions WHERE user_id = $1',
         [userId]
       );
-      const payload = JSON.stringify({ title, body: message || title, link: link || '/dashboard' });
+      const payload = JSON.stringify({ title, body: message || title, link: link || '/dashboard', type });
 
       await Promise.allSettled(
         subsRes.rows.map(async (sub) => {

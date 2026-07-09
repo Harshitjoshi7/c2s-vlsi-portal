@@ -66,7 +66,7 @@ async function api(endpoint, options = {}) {
   };
 
   if (options.body) {
-    config.body = typeof options.body === 'string'
+    config.body = (options.body instanceof FormData || typeof options.body === 'string')
       ? options.body
       : JSON.stringify(options.body);
   }

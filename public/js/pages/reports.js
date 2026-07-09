@@ -49,8 +49,8 @@ function renderReports() {
         </div>
         <div class="stat-card animate-slideUp stagger-2">
           <div class="stat-card-icon purple"><i data-lucide="folder-git-2" style="width:22px;height:22px"></i></div>
-          <div class="stat-card-value" id="rActiveProjects">—</div>
-          <div class="stat-card-label">Active Projects</div>
+          <div class="stat-card-value" id="rProjectsStats" style="font-size:1.5rem">—</div>
+          <div class="stat-card-label" style="font-size:0.75rem">Projects: Total / Active / Done</div>
         </div>
         <div class="stat-card animate-slideUp stagger-3">
           <div class="stat-card-icon green"><i data-lucide="calendar-check" style="width:22px;height:22px"></i></div>
@@ -59,8 +59,8 @@ function renderReports() {
         </div>
         <div class="stat-card animate-slideUp stagger-4">
           <div class="stat-card-icon orange"><i data-lucide="list-checks" style="width:22px;height:22px"></i></div>
-          <div class="stat-card-value" id="rCompletedTasks">—</div>
-          <div class="stat-card-label">Tasks Completed</div>
+          <div class="stat-card-value" id="rTasksStats" style="font-size:1.5rem">—</div>
+          <div class="stat-card-label" style="font-size:0.75rem">Tasks: Total / Pending / Done</div>
         </div>
       </div>
 
@@ -196,11 +196,14 @@ async function initReports() {
 
     // Summary stats
     const activeProjects = projectsData.filter(p => p.status === 'active').length;
+    const completedProjects = projectsData.filter(p => p.status === 'completed').length;
+    
+    const pendingTasks = tasksData.filter(t => t.status !== 'completed').length;
     const completedTasks = tasksData.filter(t => t.status === 'completed').length;
 
     document.getElementById('rTotalStudents').textContent = studentsData.length;
-    document.getElementById('rActiveProjects').textContent = activeProjects;
-    document.getElementById('rCompletedTasks').textContent = completedTasks;
+    document.getElementById('rProjectsStats').textContent = `${projectsData.length} / ${activeProjects} / ${completedProjects}`;
+    document.getElementById('rTasksStats').textContent = `${tasksData.length} / ${pendingTasks} / ${completedTasks}`;
 
     // Working days = distinct dates that have any attendance record up to today
     const todayStr = new Date().toISOString().slice(0, 10);

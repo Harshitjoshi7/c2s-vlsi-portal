@@ -1,4 +1,4 @@
-const CACHE_NAME = 'c2s-pwa-v12';
+const CACHE_NAME = 'c2s-pwa-v13';
 const urlsToCache = [
   '/',
   '/index.html',
