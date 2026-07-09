@@ -172,6 +172,24 @@ function renderTickets() {
               <label class="form-label">Resolution Notes</label>
               <textarea class="form-textarea" id="ticketResolution" rows="3" placeholder="How was the issue resolved?"></textarea>
             </div>
+            
+            <!-- History Log Pane (Only for Editing) -->
+            <div id="ticketHistoryPane" style="display:none; margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+              <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px; color: var(--text-primary);">Ticket History & Chat</div>
+              <div id="ticketHistoryLog" style="display:flex;flex-direction:column;gap:12px; max-height: 250px; overflow-y:auto; padding-right:8px; margin-bottom: 16px;">
+                <!-- Logs rendered here -->
+              </div>
+              
+              <div id="ticketHistoryForm" style="display:flex; flex-direction:column; gap:12px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: var(--border-radius); border: 1px solid rgba(255,255,255,0.05);">
+                <textarea id="ticketHistoryMessage" class="form-textarea" placeholder="Add a comment or update..." style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px;"></textarea>
+                <div style="display:flex; gap:10px; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                  <input type="file" id="ticketHistoryImageInput" accept="image/*" class="form-input" style="font-size: 0.8rem; padding: 6px; max-width: 200px; background: rgba(0,0,0,0.3); border-radius: 6px;" />
+                  <button type="button" class="btn btn-primary btn-sm" id="ticketHistorySubmitBtn" style="font-weight:600; padding: 6px 16px;">
+                    <i data-lucide="send" style="width:14px;height:14px;margin-right:6px"></i> Post Update
+                  </button>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
         <div class="modal-footer">
@@ -409,6 +427,31 @@ async function initTickets() {
     }
   });
 
+  function renderHistoryLog(historyLogStr) {
+    const historyLogContainer = document.getElementById('ticketHistoryLog');
+    if (!historyLogContainer) return;
+    let historyLog = [];
+    try {
+      if (historyLogStr) historyLog = typeof historyLogStr === 'string' ? JSON.parse(historyLogStr) : historyLogStr;
+    } catch (e) {}
+    
+    if (historyLog.length > 0) {
+      historyLogContainer.innerHTML = historyLog.map(h => `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+          <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight:600; font-size: 0.9rem; color: var(--text-primary);"><i data-lucide="user" style="width:14px;height:14px;margin-right:4px;"></i>${h.user}</span>
+            <span style="font-size:0.75rem; color: var(--text-muted);">${new Date(h.timestamp).toLocaleString()}</span>
+          </div>
+          ${h.status_change ? `<div style="font-size:0.8rem; color: var(--info); margin-bottom: 6px;"><i>Changed status to <b>${h.status_change}</b></i></div>` : ''}
+          ${h.message ? `<p style="font-size:0.9rem; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.5;">${h.message}</p>` : ''}
+          ${h.image_url ? `<img src="${h.image_url}" style="max-width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-top: 8px;" />` : ''}
+        </div>
+      `).join('');
+    } else {
+      historyLogContainer.innerHTML = '<div style="color:var(--text-muted);font-style:italic;font-size:0.85rem">No history yet.</div>';
+    }
+  }
+
   function openModal(ticket = null, preselectedPCId = null) {
     editingTicketId = ticket ? ticket.id : null;
     document.getElementById('ticketModalTitle').textContent = ticket ? 'Update Ticket' : 'New Ticket';
@@ -423,6 +466,17 @@ async function initTickets() {
     const camInput = document.getElementById('ticketCamera');
     if (imgInput) imgInput.value = '';
     if (camInput) camInput.value = '';
+    
+    const historyPane = document.getElementById('ticketHistoryPane');
+    if (historyPane) {
+      if (ticket) {
+        historyPane.style.display = 'block';
+        renderHistoryLog(ticket.history_log);
+      } else {
+        historyPane.style.display = 'none';
+      }
+    }
+    
     // Set PC
     const pcSelect = document.getElementById('ticketPC');
     if (pcSelect) {
@@ -445,6 +499,67 @@ async function initTickets() {
   document.getElementById('ticketModalClose')?.addEventListener('click', closeModal);
   document.getElementById('ticketModalCancel')?.addEventListener('click', closeModal);
   overlay?.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  // History Log Submit Handler
+  document.getElementById('ticketHistorySubmitBtn')?.addEventListener('click', async () => {
+    if (!editingTicketId) return;
+    
+    const message = document.getElementById('ticketHistoryMessage').value.trim();
+    const imageInput = document.getElementById('ticketHistoryImageInput');
+    const file = imageInput.files[0];
+    
+    if (!message && !file) {
+      showToast({ message: 'Please enter a message or select an image', type: 'warning' });
+      return;
+    }
+    
+    const formData = new FormData();
+    if (message) formData.append('message', message);
+    if (file) formData.append('image', file);
+    
+    const btn = document.getElementById('ticketHistorySubmitBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;margin-right:6px"></div> Posting...';
+    btn.disabled = true;
+    
+    try {
+      const res = await fetch(`/api/tickets/${editingTicketId}/history`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('ticketHistoryMessage').value = '';
+        imageInput.value = '';
+        
+        // Update local state and re-render
+        const tIdx = allTickets.findIndex(t => t.id === editingTicketId);
+        if (tIdx > -1) {
+          let hist = [];
+          if (allTickets[tIdx].history_log) {
+             hist = typeof allTickets[tIdx].history_log === 'string' ? JSON.parse(allTickets[tIdx].history_log) : allTickets[tIdx].history_log;
+          }
+          hist.push(data.data);
+          allTickets[tIdx].history_log = JSON.stringify(hist);
+          renderHistoryLog(allTickets[tIdx].history_log);
+          
+          // Scroll to bottom
+          const container = document.getElementById('ticketHistoryLog');
+          if (container) container.scrollTop = container.scrollHeight;
+        }
+      } else {
+        showToast({ message: data.error || 'Failed to post update', type: 'error' });
+      }
+    } catch (e) {
+      showToast({ message: 'Error posting update', type: 'error' });
+    } finally {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  });
 
   document.getElementById('ticketSubmitBtn')?.addEventListener('click', async () => {
     const description = document.getElementById('ticketDesc').value.trim();

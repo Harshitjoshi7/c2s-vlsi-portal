@@ -2,6 +2,25 @@ import { Router } from 'express';
 import db, { createNotification } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { authorize } from '../middleware/roleGuard.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Setup multer storage for ticket history images
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'public/uploads/tickets/';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'ticket-hist-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
 
 const router = Router();
 
@@ -252,6 +271,73 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true, message: 'Ticket deleted successfully.' });
   } catch (error) {
     console.error('Delete ticket error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// POST /api/tickets/:id/history — add message/image to ticket history
+router.post('/:id/history', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message, status_change } = req.body;
+    
+    if (!message && !req.file && !status_change) {
+      return res.status(400).json({ success: false, error: 'Must provide message, image, or status change.' });
+    }
+
+    const ticketRes = await db.query('SELECT * FROM tickets WHERE id = $1', [id]);
+    const ticket = ticketRes.rows[0];
+    if (!ticket) {
+      return res.status(404).json({ success: false, error: 'Ticket not found.' });
+    }
+
+    let historyLog = [];
+    if (ticket.history_log) {
+      try {
+        historyLog = typeof ticket.history_log === 'string' ? JSON.parse(ticket.history_log) : ticket.history_log;
+      } catch (e) {}
+    }
+
+    const newLogEntry = {
+      user: req.user.name || 'User',
+      timestamp: new Date().toISOString()
+    };
+
+    if (message) newLogEntry.message = message.trim();
+    if (status_change) newLogEntry.status_change = status_change;
+    if (req.file) {
+      newLogEntry.image_url = `/public/uploads/tickets/${req.file.filename}`;
+    }
+
+    historyLog.push(newLogEntry);
+
+    await db.query('UPDATE tickets SET history_log = $1 WHERE id = $2', [JSON.stringify(historyLog), id]);
+
+    // Send notifications
+    if (req.user.role === 'admin') {
+      await createNotification(
+        ticket.raised_by,
+        'ticket',
+        'Ticket Update',
+        `An admin has updated your ticket ${ticket.ticket_number}.`,
+        `/tickets/${id}`
+      );
+    } else {
+      const adminsRes = await db.query("SELECT id FROM users WHERE role = 'admin'");
+      for (const admin of adminsRes.rows) {
+        await createNotification(
+          admin.id,
+          'ticket',
+          'Ticket Reply',
+          `${req.user.name} has replied to ticket ${ticket.ticket_number}.`,
+          `/tickets/${id}`
+        );
+      }
+    }
+
+    res.json({ success: true, data: newLogEntry });
+  } catch (error) {
+    console.error('Ticket history error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });

@@ -220,7 +220,7 @@ async function initProjects() {
       const endpoint = isAdminUser ? 'projects' : 'projects/my';
       const res = await api.get(endpoint);
       allProjects = Array.isArray(res) ? res : (res?.data || []);
-      renderProjects(allProjects);
+      applyFilters();
     } catch(e) {
       renderProjects([]);
     }

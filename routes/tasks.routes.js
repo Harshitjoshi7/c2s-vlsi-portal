@@ -188,25 +188,29 @@ router.post('/', authorize('admin'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Task title is required.' });
     }
 
-    const insertRes = await db.query(`
-      INSERT INTO tasks (title, description, assigned_by, priority, category, deadline, attachments)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id
-    `, [
-      title,
-      description || null,
-      req.user.id,
-      priority || 'medium',
-      category || null,
-      deadline || null,
-      attachments ? JSON.stringify(attachments) : '[]',
-    ]);
+    const tasksCreated = [];
+    const assignees = (assigned_to && Array.isArray(assigned_to) && assigned_to.length > 0) ? assigned_to : [null];
 
-    const taskId = insertRes.rows[0].id;
+    for (const studentId of assignees) {
+      const insertRes = await db.query(`
+        INSERT INTO tasks (title, description, assigned_by, priority, category, deadline, attachments)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+      `, [
+        title,
+        description || null,
+        req.user.id,
+        priority || 'medium',
+        category || null,
+        deadline || null,
+        attachments ? JSON.stringify(attachments) : '[]',
+      ]);
 
-    // Assign to students and notify
-    if (assigned_to && Array.isArray(assigned_to) && assigned_to.length > 0) {
-      for (const studentId of assigned_to) {
+      const taskId = insertRes.rows[0].id;
+      tasksCreated.push(taskId);
+
+      // Assign to student and notify if applicable
+      if (studentId) {
         await db.query('INSERT INTO task_assignments (task_id, user_id) VALUES ($1, $2)', [taskId, studentId]);
         await createNotification(
           studentId,
@@ -218,15 +222,17 @@ router.post('/', authorize('admin'), async (req, res) => {
       }
     }
 
-    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    // Return the first created task as representative for the response
+    const firstTaskId = tasksCreated[0];
+    const taskRes = await db.query('SELECT * FROM tasks WHERE id = $1', [firstTaskId]);
     const assignmentsRes = await db.query(`
       SELECT ta.*, u.name as user_name
       FROM task_assignments ta
       JOIN users u ON ta.user_id = u.id
       WHERE ta.task_id = $1
-    `, [taskId]);
+    `, [firstTaskId]);
 
-    res.status(201).json({ success: true, data: { ...taskRes.rows[0], assignments: assignmentsRes.rows } });
+    res.status(201).json({ success: true, data: { ...taskRes.rows[0], assignments: assignmentsRes.rows }, createdCount: tasksCreated.length });
   } catch (error) {
     console.error('Create task error:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
@@ -332,6 +338,9 @@ router.put('/:id/status', async (req, res) => {
           completed_at = $3
         WHERE id = $4
       `, [status, progress_notes || null, completedAt, assignment.id]);
+      
+      // Keep global task status in sync since it's now 1:1
+      await db.query('UPDATE tasks SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
 
       // Gamification: Add 20 points if completing for the first time
       if (status === 'completed' && assignment.status !== 'completed') {
