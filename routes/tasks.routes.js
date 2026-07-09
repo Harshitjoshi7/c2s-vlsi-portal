@@ -375,7 +375,7 @@ router.put('/:id/status', async (req, res) => {
       }
 
       // Notification: Admin approves completed → notify the student
-      if (req.user.role === 'admin' && status === 'completed' && assignment.status !== 'completed') {
+      if (req.user.role === 'admin' && status === 'completed' && assignment && assignment.status !== 'completed') {
         await createNotification(
           targetUserId,
           'task',
@@ -386,7 +386,7 @@ router.put('/:id/status', async (req, res) => {
       }
       
       // Notification: Admin sets to needs_revision → notify the student
-      if (req.user.role === 'admin' && status === 'needs_revision' && assignment.status !== 'needs_revision') {
+      if (req.user.role === 'admin' && status === 'needs_revision' && assignment && assignment.status !== 'needs_revision') {
         await createNotification(
           targetUserId,
           'task',

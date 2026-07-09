@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
       query = `
         SELECT p.id as pc_id, p.pc_name,
                a.user_id as assigned_user_id, s.name as user_name,
-               u.id as log_id, u.usage_date, COALESCE(u.status, 'off') as status, u.tool_used, COALESCE(u.total_minutes_on, 0) as total_minutes_on
+               u.id as log_id, u.usage_date, COALESCE(u.status, 'off') as status, u.tool_used, COALESCE(u.total_minutes_on, 0) as total_minutes_on, u.turned_on_at
         FROM pcs p
         LEFT JOIN pc_assignments a ON p.id = a.pc_id AND a.status = 'active'
         LEFT JOIN users s ON a.user_id = s.id
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
       query = `
         SELECT p.id as pc_id, p.pc_name,
                a.user_id as assigned_user_id, s.name as user_name,
-               u.id as log_id, u.usage_date, COALESCE(u.status, 'off') as status, u.tool_used, COALESCE(u.total_minutes_on, 0) as total_minutes_on
+               u.id as log_id, u.usage_date, COALESCE(u.status, 'off') as status, u.tool_used, COALESCE(u.total_minutes_on, 0) as total_minutes_on, u.turned_on_at
         FROM pcs p
         JOIN pc_assignments a ON p.id = a.pc_id AND a.status = 'active' AND a.user_id = $2
         JOIN users s ON a.user_id = s.id

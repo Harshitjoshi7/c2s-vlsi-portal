@@ -113,7 +113,15 @@ function renderPcUsageTable(logs, filter) {
         usage_date: log.usage_date
       };
     }
-    pcMap[log.pc_id].total_minutes_on += (log.total_minutes_on || 0);
+    
+    let activeMinutes = 0;
+    if (log.status === 'on' && log.turned_on_at) {
+      const diffMs = new Date() - new Date(log.turned_on_at);
+      activeMinutes = Math.floor(diffMs / 60000);
+      if (activeMinutes < 0) activeMinutes = 0;
+    }
+    
+    pcMap[log.pc_id].total_minutes_on += (log.total_minutes_on || 0) + activeMinutes;
     // If it's daily, we just show the exact row. For weekly/monthly we aggregated time.
   });
 

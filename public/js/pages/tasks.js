@@ -344,6 +344,24 @@ async function initTasks() {
                     <td style="padding:16px;vertical-align:middle;cursor:pointer" onclick="viewTask(${task.id}, ${student ? student.assignment_id : 'null'})">
                       <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px; font-size: 1rem;">${task.title}</div>
                       ${task.category ? `<span class="badge badge-info" style="font-size:0.7rem; padding: 2px 8px; border-radius: 12px; background: rgba(79,143,255,0.1); color: var(--info); border: 1px solid rgba(79,143,255,0.2);">${task.category}</span>` : ''}
+                      ${(() => {
+                        let latestMsg = '';
+                        try {
+                          const historySource = student ? student.history_log : task.history_log;
+                          const historyLog = typeof historySource === 'string' ? JSON.parse(historySource) : (historySource || []);
+                          const msgEntries = historyLog.filter(h => h.message);
+                          if (msgEntries.length > 0) {
+                            const lastEntry = msgEntries[msgEntries.length - 1];
+                            latestMsg = `
+                              <div style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.2); border-radius: 6px; border-left: 2px solid var(--accent-primary);">
+                                <div style="font-size: 0.7rem; color: var(--text-muted);"><i data-lucide="message-circle" style="width:10px;height:10px;margin-right:4px;"></i>${lastEntry.user}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${lastEntry.message}</div>
+                              </div>
+                            `;
+                          }
+                        } catch (e) {}
+                        return latestMsg;
+                      })()}
                     </td>
                     <td style="padding:16px;vertical-align:middle">
                       <span style="padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;background:${pri.bg};color:${pri.color};text-transform:uppercase; border: 1px solid ${pri.color}33; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${pri.label}</span>
@@ -364,12 +382,12 @@ async function initTasks() {
                     </td>
                     <td style="padding:16px;vertical-align:middle; text-align: right;">
                       <div style="display:flex;gap:8px; justify-content: flex-end;">
-                        <button class="btn btn-ghost btn-sm" onclick="editTask(${task.id})" title="Edit Task" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
-                          <i data-lucide="pencil" style="width:16px;height:16px; color: var(--text-secondary);"></i>
+                        <button class="btn btn-ghost btn-sm" onclick="editTask(${task.id})" title="Edit Task" style="background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 600; padding: 6px 12px; color: var(--text-primary);">
+                          <i data-lucide="pencil" style="width:14px;height:14px; margin-right: 4px;"></i> Edit Details
                         </button>
                         ${student ? `
-                          <button class="btn btn-ghost btn-sm" onclick="removeAssignment(${task.id}, ${student.id})" title="Unassign Student" style="background: rgba(255,82,82,0.1); border-radius: 8px;">
-                            <i data-lucide="user-minus" style="width:16px;height:16px; color: var(--error);"></i>
+                          <button class="btn btn-ghost btn-sm" onclick="removeAssignment(${task.id}, ${student.id})" title="Unassign Student" style="background: rgba(255,82,82,0.1); border-radius: 8px; padding: 6px 10px;">
+                            <i data-lucide="user-minus" style="width:14px;height:14px; color: var(--error);"></i>
                           </button>
                         ` : ''}
                       </div>
@@ -402,6 +420,23 @@ async function initTasks() {
                       </div>
                       <h4 style="margin:0 0 12px;font-size:1.25rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;">${task.title}</h4>
                       ${task.description ? `<p style="color:var(--text-secondary);font-size:0.95rem;margin:0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${task.description}</p>` : ''}
+                      ${(() => {
+                        let latestMsg = '';
+                        try {
+                          const historyLog = typeof task.history_log === 'string' ? JSON.parse(task.history_log) : (task.history_log || []);
+                          const msgEntries = historyLog.filter(h => h.message);
+                          if (msgEntries.length > 0) {
+                            const lastEntry = msgEntries[msgEntries.length - 1];
+                            latestMsg = `
+                              <div style="margin-top: 12px; padding: 10px 14px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid var(--accent-primary);">
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;"><i data-lucide="message-circle" style="width:12px;height:12px;margin-right:4px;"></i>${lastEntry.user} (Latest Update)</div>
+                                <div style="font-size: 0.9rem; color: var(--text-primary);">${lastEntry.message}</div>
+                              </div>
+                            `;
+                          }
+                        } catch (e) {}
+                        return latestMsg;
+                      })()}
                       <div style="display:flex;align-items:center;gap:var(--space-xl);margin-top:20px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
                         ${task.deadline ? `<span style="font-size:0.85rem; font-weight: 500; color:${isOverdue ? 'var(--error)' : 'var(--text-secondary)'}; display: flex; align-items: center;"><i data-lucide="calendar" style="width:16px;height:16px;margin-right:6px;"></i> Due ${new Date(task.deadline).toLocaleDateString()}</span>` : ''}
                         ${task.assigned_by_name ? `<span style="font-size:0.85rem; font-weight: 500; color:var(--text-secondary); display: flex; align-items: center;"><i data-lucide="user" style="width:16px;height:16px;margin-right:6px;"></i> From ${task.assigned_by_name}</span>` : ''}
@@ -481,6 +516,24 @@ async function initTasks() {
                       </div>
                       <div style="font-size:0.95rem;font-weight:600;color:var(--text-primary);margin-bottom:8px;line-height:1.4;">${task.title}</div>
                       ${task.deadline ? `<div style="font-size:0.75rem;color:var(--text-secondary); margin-bottom: 10px; display: flex; align-items: center;"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i>${new Date(task.deadline).toLocaleDateString()}</div>` : ''}
+                      ${(() => {
+                        let latestMsg = '';
+                        try {
+                          const historySource = student ? student.history_log : task.history_log;
+                          const historyLog = typeof historySource === 'string' ? JSON.parse(historySource) : (historySource || []);
+                          const msgEntries = historyLog.filter(h => h.message);
+                          if (msgEntries.length > 0) {
+                            const lastEntry = msgEntries[msgEntries.length - 1];
+                            latestMsg = `
+                              <div style="margin-top: 6px; margin-bottom: 6px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; border-left: 2px solid var(--accent-primary);">
+                                <div style="font-size: 0.65rem; color: var(--text-muted);"><i data-lucide="message-circle" style="width:10px;height:10px;margin-right:2px;"></i>${lastEntry.user}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${lastEntry.message}</div>
+                              </div>
+                            `;
+                          }
+                        } catch (e) {}
+                        return latestMsg;
+                      })()}
                       
                       ${student ? `
                          <div style="display:flex;align-items:center;gap:8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; margin-top: 8px;">
